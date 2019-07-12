@@ -85,7 +85,8 @@ def image_making_main():
             except Exception as e:
                 logging.exception(e)
             finally:
-                os.remove(img_path)
+                if os.path.isfile(img_path):
+                    os.remove(img_path)
         else:
             time.sleep(1)
         reboot_status = r_object.get_content(local_ip + '_image_making')
