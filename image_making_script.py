@@ -49,7 +49,7 @@ def image_making_main():
                 download_time = time.time() - start_time
 
                 assessment_start_time = time.time()
-                assessment_img = np.asarray(keras.preprocessing.image.load_img(img_path, target_size=(224, 224)))
+                # assessment_img = np.asarray(keras.preprocessing.image.load_img(img_path, target_size=(224, 224)))
                 # aesthetic_value = aesthetic_model.get_res(assessment_img)
                 # technical_value = technical_model.get_res(assessment_img)
                 assessment_time = time.time() - assessment_start_time
@@ -95,7 +95,7 @@ def image_making_main():
                 if os.path.isfile(img_path):
                     os.remove(img_path)
         else:
-            time.sleep(1)
+            time.sleep(0.1)
         reboot_status = r_object.get_content(local_ip + '_image_making')
         reboot_code = str(reboot_status)
         if reboot_code == '1':
@@ -114,7 +114,7 @@ def main():
         if sum(thread_status) == 0:
             logging.info('所有线程已停止, 等待重启...')
             return
-        time.sleep(20)
+        time.sleep(5)
 
 
 if __name__ == '__main__':
@@ -141,7 +141,7 @@ if __name__ == '__main__':
     # 获取本地ip
     r_object.set_content(local_ip + '_image_making', "0")
 
-    thread_num = 9
+    thread_num = 4
     logging.info("即将开启的线程数: {}".format(thread_num))
 
     oi_5000_model = image_making_interface.ImageMakingWithOpenImage()
