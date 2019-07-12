@@ -27,11 +27,10 @@ except Exception:
 
 def image_making_main():
     thread_id = threading.current_thread().getName()
-    aesthetic_model = image_quality_assessment_interface.QualityAssessmentModel(
-        model_path='./models/weights_mobilenet_aesthetic_0.07.hdf5')
-    technical_model = image_quality_assessment_interface.QualityAssessmentModel(
-        model_path='./models/weights_mobilenet_technical_0.11.hdf5'
-    )
+    # aesthetic_model = image_quality_assessment_interface.QualityAssessmentModel(
+    #     model_path='./models/weights_mobilenet_aesthetic_0.07.hdf5')
+    # technical_model = image_quality_assessment_interface.QualityAssessmentModel(
+    #     model_path='./models/weights_mobilenet_technical_0.11.hdf5')
     logging.info("线程ID: {}, 启动完成...".format(thread_id))
     while True:
         params = r_object.rpop_content(conf.res_image_making_name)
@@ -51,8 +50,8 @@ def image_making_main():
 
                 assessment_start_time = time.time()
                 assessment_img = np.asarray(keras.preprocessing.image.load_img(img_path, target_size=(224, 224)))
-                aesthetic_value = aesthetic_model.get_res(assessment_img)
-                technical_value = technical_model.get_res(assessment_img)
+                # aesthetic_value = aesthetic_model.get_res(assessment_img)
+                # technical_value = technical_model.get_res(assessment_img)
                 assessment_time = time.time() - assessment_start_time
 
                 tags = []
@@ -84,7 +83,8 @@ def image_making_main():
                     'fileId': file_id,
                     'tag': str(tags),
                     'filePath': image_url,
-                    'exponent': str({"aesthetic": aesthetic_value, "technical": technical_value}),
+                    # 'exponent': str({"aesthetic": aesthetic_value, "technical": technical_value}),
+                    'exponent': str({"aesthetic": 0, "technical": 0}),
                     'identity': str({"isIDCard": 0})
                 }
                 call_res = requests.post(callback_url, json=data_json)
