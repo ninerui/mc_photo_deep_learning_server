@@ -27,7 +27,7 @@ def _load_dictionary(dict_file):
     dictionary = dict()
     with open(dict_file, 'r', encoding='utf-8') as lines:
         for line in lines:
-            sp = line.rstrip('\n').split('\t')
+            sp = line.strip().split('\t')
             idx, name = sp[0], sp[1]
             dictionary[idx] = name
     return dictionary
