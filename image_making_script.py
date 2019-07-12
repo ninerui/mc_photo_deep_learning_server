@@ -57,21 +57,28 @@ def image_making_main():
 
                 tags = []
                 oi_5000_start_time = time.time()
-                tags = tags + oi_5000_model.get_tag(img_path)
+                tag = oi_5000_model.get_tag(img_path)
+                for i in tag:
+                    tags.append(i)
                 oi_5000_time = time.time() - oi_5000_start_time
 
                 raw_img = cv2.imread(img_path)
                 ml_1000_start_time = time.time()
-                tags = tags + ml_1000_model.get_tag(raw_img)
+                tag = ml_1000_model.get_tag(raw_img)
+                for i in tag:
+                    tags.append(i)
                 ml_1000_time = time.time() - ml_1000_start_time
 
                 ml_11166_start_time = time.time()
-                tags = tags + ml_11166_model.get_tag(raw_img)
+                tag = ml_11166_model.get_tag(raw_img)
+                for i in tag:
+                    tags.append(i)
                 ml_11166_time = time.time() - ml_11166_start_time
 
                 logging.info("线程ID: {}, 图片下载地址: {}, 下载时间: {}, 质量时间: {}, oi5000时间: {}, ml1000时间: {}, "
                              "ml11166时间: {}".format(thread_id, image_url, download_time, assessment_time, oi_5000_time,
                                                     ml_1000_time, ml_11166_time))
+                logging.info("结果: {}".format(tags))
                 data_json = {
                     'mediaId': media_id,
                     'fileId': file_id,
