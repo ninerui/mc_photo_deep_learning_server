@@ -78,7 +78,7 @@ def image_making_main():
                 logging.info("线程ID: {}, 图片下载地址: {}, 下载时间: {}, 质量时间: {}, oi5000时间: {}, ml1000时间: {}, "
                              "ml11166时间: {}".format(thread_id, image_url, download_time, assessment_time, oi_5000_time,
                                                     ml_1000_time, ml_11166_time))
-                logging.info("结果: {}".format(tags))
+                # logging.info("结果: {}".format(tags))
                 data_json = {
                     'mediaId': media_id,
                     'fileId': file_id,
@@ -141,7 +141,7 @@ if __name__ == '__main__':
     # 获取本地ip
     r_object.set_content(local_ip + '_image_making', "0")
 
-    thread_num = 3
+    thread_num = 9
     logging.info("即将开启的线程数: {}".format(thread_num))
 
     oi_5000_model = image_making_interface.ImageMakingWithOpenImage()
