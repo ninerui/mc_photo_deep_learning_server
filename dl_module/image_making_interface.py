@@ -94,7 +94,7 @@ class ImageMakingWithTencent:
             confidence = probs_topk[i]
             if confidence < threshold:
                 continue
-            tag.append({"value": self.labels.get(str(i), ""), "confidence": (int(confidence * 100) + 1000)})
+            tag.append({"value": self.labels.get(str(pred), ""), "confidence": (int(confidence * 100) + 1000)})
         return tag
 
 # class ImageMakingWithTencent1000:
