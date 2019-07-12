@@ -10,6 +10,10 @@ import requests
 import numpy as np
 from tensorflow import keras
 
+import conf
+from utils import connects, util
+from dl_module import image_making_interface, image_quality_assessment_interface
+
 try:
     import absl.logging
 
@@ -19,10 +23,6 @@ try:
     absl.logging._warn_preinit_stderr = False
 except Exception:
     pass
-
-import conf
-from utils import connects, util
-from dl_module import image_making_interface, image_quality_assessment_interface
 
 
 def image_making_main():
@@ -43,8 +43,8 @@ def image_making_main():
             image_url = params['image_url']
             file_id = params['file_id']
             callback_url = params['callback_url']
+            img_path = os.path.join('./', os.path.basename(image_url))
             try:
-                img_path = os.path.join('./', os.path.basename(image_url))
                 start_time = time.time()
                 urlretrieve(image_url, img_path)
                 download_time = time.time() - start_time
@@ -84,6 +84,8 @@ def image_making_main():
                 logging.info("线程ID: {}, 返回代码: {}, 返回内容: {}".format(thread_id, call_res.status_code, call_res.text))
             except Exception as e:
                 logging.exception(e)
+            finally:
+                os.remove(img_path)
         else:
             time.sleep(1)
         reboot_status = r_object.get_content(local_ip + '_image_making')

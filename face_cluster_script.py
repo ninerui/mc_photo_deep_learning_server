@@ -13,6 +13,14 @@ import mxnet as mx
 import requests
 import numpy as np
 from tensorflow import keras
+
+import conf
+from utils import connects, util, image_tools
+from dl_module import face_emotion_interface
+from dl_module import face_cluster_interface
+from dl_module import face_detection_interface
+from dl_module import face_recognition_interface
+
 try:
     import absl.logging
 
@@ -22,13 +30,6 @@ try:
     absl.logging._warn_preinit_stderr = False
 except Exception:
     pass
-
-import conf
-from utils import connects, util, image_tools
-from dl_module import face_emotion_interface
-from dl_module import face_cluster_interface
-from dl_module import face_detection_interface
-from dl_module import face_recognition_interface
 
 
 def get_params_for_res():
