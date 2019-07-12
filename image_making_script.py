@@ -11,15 +11,6 @@ import numpy as np
 from tensorflow import keras
 
 try:
-    # Capirca uses Google's abseil-py library, which uses a Google-specific
-    # wrapper for logging. That wrapper will write a warning to sys.stderr if
-    # the Google command-line flags library has not been initialized.
-    #
-    # https://github.com/abseil/abseil-py/blob/pypi-v0.7.1/absl/logging/__init__.py#L819-L825
-    #
-    # This is not right behavior for Python code that is invoked outside of a
-    # Google-authored main program. Use knowledge of abseil-py to disable that
-    # warning; ignore and continue if something goes wrong.
     import absl.logging
 
     # https://github.com/abseil/abseil-py/issues/99
@@ -41,6 +32,7 @@ def image_making_main():
     technical_model = image_quality_assessment_interface.QualityAssessmentModel(
         model_path='./models/weights_mobilenet_technical_0.11.hdf5'
     )
+    logging.info("线程ID: {}, 启动完成...".format(thread_id))
     while True:
         params = r_object.rpop_content(conf.res_image_making_name)
         if params:

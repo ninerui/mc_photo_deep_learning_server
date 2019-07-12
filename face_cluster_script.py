@@ -13,6 +13,15 @@ import mxnet as mx
 import requests
 import numpy as np
 from tensorflow import keras
+try:
+    import absl.logging
+
+    # https://github.com/abseil/abseil-py/issues/99
+    logging.root.removeHandler(absl.logging._absl_handler)
+    # https://github.com/abseil/abseil-py/issues/102
+    absl.logging._warn_preinit_stderr = False
+except Exception:
+    pass
 
 import conf
 from utils import connects, util, image_tools
