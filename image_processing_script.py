@@ -151,6 +151,11 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
                 logging.exception(e)
                 time.sleep(2)
                 continue
+            reboot_status = r_object.get_content(local_ip)
+            reboot_code = str(reboot_status)
+            if reboot_code == '1':
+                self.pr_log('发现服务需要重启, 重启代码: {}'.format(reboot_code))
+                return
             time.sleep(2)
 
 
@@ -349,6 +354,9 @@ if __name__ == '__main__':
     # 创建线程并开始线程
     for i in range(conf.thread_num):
         ImageProcessingThread("Thread_{}".format(i)).start()
+
+    for i in range(3):
+        FaceClusterThread("face_cluster_{}".format(i)).start()
 
     while True:
         active_thread_count = threading.active_count()
