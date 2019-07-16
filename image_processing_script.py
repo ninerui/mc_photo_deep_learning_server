@@ -99,6 +99,7 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
                 time.sleep(3)
                 continue
             user_id = face_user_key.split('-')[1]
+            # self.pr_log(user_id)
             oss_running_file = "face_cluster_data/{}/.running".format(user_id)
             exist = oss_bucket.object_exists(oss_running_file)
             if exist:
@@ -113,18 +114,20 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
 
             suc_parser_img_set = pickle.loads(oss_bucket.get_object(oss_suc_img_list_file).read())
             face_id_label_dict = pickle.loads(oss_bucket.get_object(oss_face_id_with_label_file).read())
-            old_data = json.loads(oss_bucket.get_object(oss_face_data_file).read())
+            old_data = pickle.loads(oss_bucket.get_object(oss_face_data_file).read())
 
             face_data = []
             success_image_set = set()
             while True:
                 data_ = r_object.rpop_content(face_user_key)
+                # self.pr_log("dwadawdwa; {}".format(r_object.llen_content(face_user_key)))
                 if not data_:
                     break
                 data_ = json.loads(data_)
                 media_id = data_.get('face_id', "").split('_')[0]
-                face_data.append(pickle.loads(data_))
+                face_data.append(data_)
                 success_image_set.add(media_id)
+            # self.pr_log("dwad: {}".format(len(face_data)))
             if len(face_data) == 0:
                 continue
             face_data = old_data + face_data
@@ -243,7 +246,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                         image_np_expanded = np.expand_dims(image_r, axis=0)
 
                         (fd_boxes_, fd_scores_) = fd_ssd_detection.detect_face(image_np_expanded)
-                        self.pr_log("人脸数据: {}".format(fd_scores_))
+                        # self.pr_log("人脸数据: {}".format(fd_scores_))
                         face_count = 0
                         for i in range(fd_boxes_[0].shape[0]):
                             if fd_scores_[0][i] < 0.7:
