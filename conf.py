@@ -6,11 +6,20 @@ env_manage = {
     '172.16.178.202': 1,  # 47.111.147.203
     '172.16.178.203': 1,  # 47.111.147.95
 }
+log_dir = './log'
+tmp_image_dir = '../tmp_image_dir'
+
+thread_num = 9
+
+redis_image_queue_name = "mc_image_queue_list"
+redis_face_info_name = "mc_face_info_list-{}"
+redis_face_info_key_set = "mc_face_info_key_set"
+redis_face_info_key_list = "mc_face_info_key_list"
 
 res_face_cluster_name = "mc_face_cluster_list"
 res_image_making_name = "mc_image_making_list"
 
-output_dir = '/data/mc_face_clustering_data'
+handle_result_url = "http://47.112.110.202:8081/ai/updateFaceId"
 
 
 class AccountConf:

@@ -25,6 +25,15 @@ class ConnectRedis:
     def lpush_content(self, key, value):
         self.r_object.lpush(key, value)
 
+    def sadd_content(self, key, value):
+        self.r_object.sadd(key, value)
+
+    def spop_content(self, key):
+        return self.r_object.spop(key)
+
+    def sismember_content(self, key, value):
+        return self.r_object.sismember(key, value)
+
 
 class ConnectALiYunOSS:
     def __init__(self, accessKeyId, accessKeySecret, endpoint, bucket):
