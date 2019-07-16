@@ -1,5 +1,6 @@
 import os
 import time
+import json
 import pickle
 import logging
 import threading
@@ -16,6 +17,16 @@ from dl_module import face_cluster_interface
 from dl_module import face_emotion_interface
 from dl_module import image_quality_assessment_interface
 from dl_module import image_making_interface, face_detection_interface, face_recognition_interface
+
+try:
+    import absl.logging
+
+    # https://github.com/abseil/abseil-py/issues/99
+    logging.root.removeHandler(absl.logging._absl_handler)
+    # https://github.com/abseil/abseil-py/issues/102
+    absl.logging._warn_preinit_stderr = False
+except Exception:
+    pass
 
 
 class FilePathConf:
@@ -84,11 +95,13 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
         while True:
             face_user_key = r_object.rpop_content(conf.redis_face_info_key_list)
+            if not face_user_key:
+                time.sleep(3)
+                continue
             user_id = face_user_key.split('-')[1]
             oss_running_file = "face_cluster_data/{}/.running".format(user_id)
             exist = oss_bucket.object_exists(oss_running_file)
             if exist:
-                time.sleep(2)
                 continue
             oss_bucket.put_object(oss_running_file, 'running')
             oss_suc_img_list_file = "face_cluster_data/{}/suc_img_list.pkl".format(user_id)
@@ -100,7 +113,7 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
 
             suc_parser_img_set = pickle.loads(oss_bucket.get_object(oss_suc_img_list_file).read())
             face_id_label_dict = pickle.loads(oss_bucket.get_object(oss_face_id_with_label_file).read())
-            old_data = pickle.loads(oss_bucket.get_object(oss_face_data_file).read())
+            old_data = json.loads(oss_bucket.get_object(oss_face_data_file).read())
 
             face_data = []
             success_image_set = set()
@@ -108,7 +121,7 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
                 data_ = r_object.rpop_content(face_user_key)
                 if not data_:
                     break
-                data_ = pickle.loads(data_)
+                data_ = json.loads(data_)
                 media_id = data_.get('face_id', "").split('_')[0]
                 face_data.append(pickle.loads(data_))
                 success_image_set.add(media_id)
@@ -173,6 +186,10 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         elif style == 'exception':
             logging.exception(content)
 
+    def download_imageg(self, image_url):
+        image_name = os.path.basename(image_url)
+        return
+
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
         self.pr_log("开始加载局部模型...")
         aesthetic_model = image_quality_assessment_interface.QualityAssessmentModel(
@@ -184,10 +201,10 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         while True:
             params_count = r_object.llen_content(conf.res_image_making_name)
             try:
-                self.pr_log("开始处理图片, 剩余数据: {} 条".format(params_count))
-                params = r_object.rpop_content(conf.redis_image_queue_name)
+                params = r_object.rpop_content(conf.res_image_making_name)
                 if params:
-                    params = pickle.loads(params)
+                    self.pr_log("开始处理图片, 剩余数据: {} 条".format(params_count - 1))
+                    params = json.loads(params)
                     user_id = params.get("user_id")
                     media_id = params.get("media_id")
                     image_url = params.get('image_url')
@@ -226,6 +243,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                         image_np_expanded = np.expand_dims(image_r, axis=0)
 
                         (fd_boxes_, fd_scores_) = fd_ssd_detection.detect_face(image_np_expanded)
+                        self.pr_log("人脸数据: {}".format(fd_scores_))
                         face_count = 0
                         for i in range(fd_boxes_[0].shape[0]):
                             if fd_scores_[0][i] < 0.7:
@@ -279,10 +297,10 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                             emb = fr_arcface.get_feature(warped)
 
                             redis_user_key = conf.redis_face_info_name.format(user_id)
-                            r_object.lpush_content(redis_user_key, pickle.dumps({
+                            r_object.lpush_content(redis_user_key, json.dumps({
                                 "face_id": "{}_{}".format(media_id, i),
                                 "face_box": [left, top, right - left, bottom - top],
-                                "face_feature": emb,
+                                "face_feature": np.array(emb).tolist(),
                                 "emotionStr": emotion_label_arg,
                             }))
                             r_object.lpush_content(conf.redis_face_info_key_list, redis_user_key)
@@ -300,7 +318,16 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                             'identity': str({"isIDCard": 0}),
                             'existFace': min(face_count, 127),
                         }
-
+                        self.pr_log({
+                            'mediaId': media_id,
+                            'fileId': file_id,
+                            'tag': str(tags),
+                            'filePath': image_url,
+                            # 'exponent': str({"aesthetic": aesthetic_value, "technical": technical_value}),
+                            'exponent': aesthetic_value,
+                            'identity': str({"isIDCard": 0}),
+                            'existFace': min(face_count, 127),
+                        })
                         call_res = requests.post(callback_url, json=data_json)
                         self.pr_log("返回代码: {}, 返回内容: {}".format(call_res.status_code, call_res.text))
                         self.pr_log("{} 处理成功, 耗时: {}".format(media_id, time.time() - start_time))
@@ -323,6 +350,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
 if __name__ == '__main__':
     # 创建日志文件
     util.makedirs(conf.log_dir)
+    util.makedirs(conf.tmp_image_dir)
     py_file_name = os.path.basename(__file__).split('.')[0]
     log_file = os.path.join(conf.log_dir, "{}.log".format(py_file_name))
     util.init_logging(log_file, log_filelevel=logging.INFO, log_streamlevel=logging.INFO, daily=False)
@@ -352,10 +380,11 @@ if __name__ == '__main__':
 
     logging.info("即将开启的线程数: {}".format(conf.thread_num))
     # 创建线程并开始线程
-    for i in range(conf.thread_num):
+    # for i in range(conf.thread_num):
+    for i in range(3):
         ImageProcessingThread("Thread_{}".format(i)).start()
 
-    for i in range(3):
+    for i in range(2):
         FaceClusterThread("face_cluster_{}".format(i)).start()
 
     while True:

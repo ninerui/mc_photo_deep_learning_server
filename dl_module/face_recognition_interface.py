@@ -4,7 +4,7 @@ from sklearn.preprocessing import normalize
 
 
 class FaceRecognitionWithArcFace:
-    def __init__(self, ctx=mx.cpu(), model_path='./models/model-r100-ii/model'):
+    def __init__(self, ctx=mx.cpu(), model_path='./models/fr_model_r100_ii/model'):
         prefix = model_path
         epoch = 0
         sym, arg_params, aux_params = mx.model.load_checkpoint(prefix, epoch)
