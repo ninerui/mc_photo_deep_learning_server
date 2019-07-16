@@ -128,22 +128,13 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
                 face_data.append(data_)
                 success_image_set.add(media_id)
             # self.pr_log("dwad: {}".format(len(face_data)))
-            if len(face_data) == 0:
-                continue
-            face_data = old_data + face_data
-            start_cluster_time = time.time()
-            call_res_dict, face_id_label_dict = face_cluster_interface.cluster_face_func(
-                face_data, user_id, face_id_label_dict)
-            logging.info('用户ID: {}, 聚类人脸耗时: {}'.format(user_id, time.time() - start_cluster_time))
+            if len(face_data) != 0:
+                face_data = old_data + face_data
+                start_cluster_time = time.time()
+                call_res_dict, face_id_label_dict = face_cluster_interface.cluster_face_func(
+                    face_data, user_id, face_id_label_dict)
+                logging.info('用户ID: {}, 聚类人脸耗时: {}'.format(user_id, time.time() - start_cluster_time))
 
-            oss_bucket.put_object(oss_face_id_with_label_file, pickle.dumps(face_id_label_dict))
-            oss_bucket.put_object(oss_face_data_file, pickle.dumps(face_data))
-            oss_bucket.put_object(oss_suc_img_list_file, pickle.dumps(success_image_set | suc_parser_img_set))
-            exist = oss_bucket.object_exists(oss_running_file)
-            if exist:
-                oss_bucket.delete_object(oss_running_file)
-            # 开始回调结果数据
-            try:
                 # 回调下载成功列表
                 logging.info(
                     "用户ID: {}, 开始回调 {} 结果, 共 {} 条数据...".format(
@@ -163,10 +154,38 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
                             "user_id": user_id,
                             "call_res_dict": call_res_dict,
                         }))
-            except Exception as e:
-                logging.exception(e)
-                time.sleep(2)
-                continue
+
+            oss_bucket.put_object(oss_face_id_with_label_file, pickle.dumps(face_id_label_dict))
+            oss_bucket.put_object(oss_face_data_file, pickle.dumps(face_data))
+            oss_bucket.put_object(oss_suc_img_list_file, pickle.dumps(success_image_set | suc_parser_img_set))
+            exist = oss_bucket.object_exists(oss_running_file)
+            if exist:
+                oss_bucket.delete_object(oss_running_file)
+            # 开始回调结果数据
+            # try:
+            #     # 回调下载成功列表
+            #     logging.info(
+            #         "用户ID: {}, 开始回调 {} 结果, 共 {} 条数据...".format(
+            #             user_id, conf.handle_result_url, len(call_res_dict)))
+            #     call_results_status = call_url_func(user_id, conf.handle_result_url, data_json={
+            #         'userId': user_id,
+            #         'content': call_res_dict
+            #     })
+            #
+            #     if not call_results_status:
+            #         # 回调失败, 保存结果
+            #         logging.error("用户ID: {}, 结果列表回调失败, 保存结果至oss!".format(user_id))
+            #         oss_bucket.put_object(
+            #             "face_cluster_call_error_data/{}/call_result_error.pkl".format(user_id),
+            #             pickle.dumps({
+            #                 "handle_result_url": conf.handle_result_url,
+            #                 "user_id": user_id,
+            #                 "call_res_dict": call_res_dict,
+            #             }))
+            # except Exception as e:
+            #     logging.exception(e)
+            #     time.sleep(2)
+            #     continue
             reboot_status = r_object.get_content(local_ip)
             reboot_code = str(reboot_status)
             if reboot_code == '1':
