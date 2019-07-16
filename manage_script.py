@@ -52,7 +52,7 @@ def main():
         args.cmd = 'restart'
     cmd = args.cmd
     if cmd == 'daemon':
-        python_process = get_script_status('face_cluster_script.py')
+        python_process = get_script_status(script_name)
         if len(python_process) < 1:
             start_script(script_name)
         return
@@ -96,6 +96,8 @@ if __name__ == '__main__':
     r_object = connects.ConnectRedis(
         account_conf.res_host, account_conf.res_port, account_conf.res_decode_responses, account_conf.res_password)
 
-    script_name = 'face_cluster_script.py'
-    log_file = "./log/face_cluster_script.log"
+    # script_name = 'face_cluster_script.py'
+    # log_file = "./log/face_cluster_script.log"
+    script_name = 'image_processing_script.py'
+    log_file = "./log/image_processing_script.log"
     main()

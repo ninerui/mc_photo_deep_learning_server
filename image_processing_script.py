@@ -93,6 +93,7 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
         time.sleep(9 / max(1, params_count))
 
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
+        self.log_info("人脸聚类线程已启动...")
         while True:
             face_user_key = r_object.rpop_content(conf.redis_face_info_key_list)
             if not face_user_key:
