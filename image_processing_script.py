@@ -224,7 +224,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 new_img_path = os.path.join(conf.tmp_image_dir, "{}.jpg".format(image_id))
                 tmp_time = time.time()
                 os.system("./tools/tifig -v -p {} {}".format(image_path, new_img_path))
-                util.removefile(image_path)
+                # util.removefile(image_path)
                 self.log_info("{}转jpg耗时: {}".format(image_name, time.time() - tmp_time))
                 return new_img_path
             except Exception as e:
