@@ -173,12 +173,6 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         threading.Thread.__init__(self)
         self.thread_name = thread_name
         self.log_content = "线程名: {}".format(thread_name) + ", {}"
-        self.aesthetic_model = image_quality_assessment_interface.QualityAssessmentModel(
-            model_path='./models/weights_mobilenet_aesthetic_0.07.hdf5')
-        self.technical_model = image_quality_assessment_interface.QualityAssessmentModel(
-            model_path='./models/weights_mobilenet_technical_0.11.hdf5')
-        self.fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
-        self.fe_detection = face_emotion_interface.FaceEmotionKeras()  # 表情检测模型, 不能跨线程
 
     def log_error(self, content):
         logging.error(self.log_content.format(content))
@@ -233,7 +227,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         else:
             return image_path
 
-    def parser_face(self, user_id, media_id, image):
+    def parser_face(self, user_id, media_id, image, fe_detection, fr_arcface):
         try:
             tmp_time = time.time()
             image_np = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -290,10 +284,10 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 oss_bucket.put_object_from_file(oss_face_image_name, face_image_path)
                 util.removefile(face_image_path)
 
-                emotion_label_arg = self.fe_detection.detection_emotion(warped)
+                emotion_label_arg = fe_detection.detection_emotion(warped)
 
                 warped = np.transpose(warped, (2, 0, 1))
-                emb = self.fr_arcface.get_feature(warped)
+                emb = fr_arcface.get_feature(warped)
 
                 redis_user_key = conf.redis_face_info_name.format(user_id)
                 r_object.lpush_content(redis_user_key, json.dumps({
@@ -320,12 +314,12 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
 
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
         self.log_info("图片解析线程已启动...")
-        # aesthetic_model = image_quality_assessment_interface.QualityAssessmentModel(
-        #     model_path='./models/weights_mobilenet_aesthetic_0.07.hdf5')
-        # technical_model = image_quality_assessment_interface.QualityAssessmentModel(
-        #     model_path='./models/weights_mobilenet_technical_0.11.hdf5')
-        # fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
-        # fe_detection = face_emotion_interface.FaceEmotionKeras()  # 表情检测模型, 不能跨线程
+        aesthetic_model = image_quality_assessment_interface.QualityAssessmentModel(
+            model_path='./models/weights_mobilenet_aesthetic_0.07.hdf5')
+        technical_model = image_quality_assessment_interface.QualityAssessmentModel(
+            model_path='./models/weights_mobilenet_technical_0.11.hdf5')
+        fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
+        fe_detection = face_emotion_interface.FaceEmotionKeras()  # 表情检测模型, 不能跨线程
         while True:
             params_count = r_object.llen_content(conf.res_image_making_name)
             params = r_object.rpop_content(conf.res_image_making_name)
@@ -346,8 +340,8 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 start_time = time.time()
                 assessment_img = np.asarray(
                     keras.preprocessing.image.load_img(image_path, target_size=(224, 224)))
-                aesthetic_value = self.aesthetic_model.get_res(assessment_img)
-                technical_value = self.technical_model.get_res(assessment_img)
+                aesthetic_value = aesthetic_model.get_res(assessment_img)
+                technical_value = technical_model.get_res(assessment_img)
                 aesthetic_value = aesthetic_value * 0.8 + technical_value * 0.2
 
                 image = cv2.imread(image_path)
@@ -356,7 +350,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                     image)
                 self.log_info("{}打标耗时: {}".format(os.path.basename(image_path), time.time() - tmp_time))
 
-                face_count = self.parser_face(user_id, media_id, image)
+                face_count = self.parser_face(user_id, media_id, image, fe_detection, fr_arcface)
                 # tmp_time = time.time()
                 # image_np = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                 # im_height, im_width = image.shape[:2]
