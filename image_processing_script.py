@@ -195,7 +195,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         if image_type.lower == 'heic':
             new_img_path = os.path.join(conf.tmp_image_dir, "{}.jpg".format(image_id))
             try:
-                os.system("tifig -v -p {} {}".format(image_path, new_img_path))
+                os.system("./tools/tifig -v -p {} {}".format(image_path, new_img_path))
             except Exception as e:
                 self.log_exception("{}转换失败\n{}".format(image_url, e))
                 return None
@@ -221,19 +221,18 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         fe_detectrion = face_emotion_interface.FaceEmotionKeras()  # 表情检测模型, 不能跨线程
         while True:
             params_count = r_object.llen_content(conf.res_image_making_name)
+            params = r_object.rpop_content(conf.res_image_making_name)
+            if not params:
+                self.check_restart(params_count)
+                continue
+            self.log_info("开始处理图片, 剩余数据: {} 条".format(params_count - 1))
+            params = json.loads(params)
+            user_id = params.get("user_id")
+            media_id = params.get("media_id")
+            image_url = params.get('image_url')
+            file_id = params.get('file_id')
+            callback_url = params.get('callback_url')
             try:
-                params = r_object.rpop_content(conf.res_image_making_name)
-                if not params:
-                    self.check_restart(params_count)
-                    continue
-                self.log_info("开始处理图片, 剩余数据: {} 条".format(params_count - 1))
-                params = json.loads(params)
-                user_id = params.get("user_id")
-                media_id = params.get("media_id")
-                image_url = params.get('image_url')
-                file_id = params.get('file_id')
-                callback_url = params.get('callback_url')
-
                 image_path = self.download_image(image_url)
                 if not image_path:
                     continue
@@ -331,7 +330,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 self.log_info("返回代码: {}, 返回内容: {}".format(call_res.status_code, call_res.text))
                 self.log_info("{} 处理成功, 耗时: {}".format(media_id, time.time() - start_time))
             except Exception as e:
-                self.log_exception(e)
+                self.log_exception("{} 处理失败\n{}".format(image_url, e))
                 self.check_restart(params_count)
                 continue
 
