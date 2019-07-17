@@ -331,7 +331,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 }
                 call_res = requests.post(callback_url, json=data_json)
                 self.log_info("返回代码: {}, 返回内容: {}".format(call_res.status_code, call_res.text))
-                self.log_info("{} 处理成功, 耗时: {}".format(media_id, time.time() - start_time))
+                self.log_info("{} 处理成功, 耗时: {}".format(os.path.basename(image_url), time.time() - start_time))
             except Exception as e:
                 self.log_exception("{} 处理失败\n{}".format(image_url, e))
                 self.check_restart(params_count)
