@@ -203,8 +203,9 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 return None
             if os.path.isfile(image_path) and os.path.isfile(new_img_path):
                 os.remove(image_path)
-                image_path = new_img_path
-        return image_path
+                return new_img_path
+        else:
+            return image_path
 
     def check_restart(self, params_count):
         reboot_code = r_object.get_content(local_ip)
