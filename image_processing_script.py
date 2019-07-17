@@ -173,6 +173,12 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         threading.Thread.__init__(self)
         self.thread_name = thread_name
         self.log_content = "线程名: {}".format(thread_name) + ", {}"
+        self.aesthetic_model = image_quality_assessment_interface.QualityAssessmentModel(
+            model_path='./models/weights_mobilenet_aesthetic_0.07.hdf5')
+        self.technical_model = image_quality_assessment_interface.QualityAssessmentModel(
+            model_path='./models/weights_mobilenet_technical_0.11.hdf5')
+        self.fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
+        self.fe_detection = face_emotion_interface.FaceEmotionKeras()  # 表情检测模型, 不能跨线程
 
     def log_error(self, content):
         logging.error(self.log_content.format(content))
@@ -182,6 +188,27 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
 
     def log_exception(self, content):
         logging.exception(self.log_content.format(content))
+
+    def call_url_func(self, callback_url, data_json):
+        call_count = 0
+        call_suc_status = False
+        while call_count < 20:
+            try:
+                call_res = requests.post(callback_url, json=data_json)
+                if int(call_res.status_code) == 200:
+                    call_suc_status = True
+                    self.log_info("call_status: {}".format(call_res.text))
+                    return call_suc_status
+                else:
+                    self.log_error("call_status: {}".format(call_res.text))
+                    time.sleep(9)
+                    call_count += 1
+            except Exception as e:
+                logging.exception(e)
+                call_count += 1
+                time.sleep(9)
+                continue
+        return call_suc_status
 
     def download_image(self, image_url):
         image_name = os.path.basename(image_url)
@@ -193,19 +220,96 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             return None
         image_id, image_type = os.path.splitext(image_name)
         if image_type.lower() == '.heic':
-            new_img_path = os.path.join(conf.tmp_image_dir, "{}.jpg".format(image_id))
             try:
+                new_img_path = os.path.join(conf.tmp_image_dir, "{}.jpg".format(image_id))
                 tmp_time = time.time()
                 os.system("./tools/tifig -v -p {} {}".format(image_path, new_img_path))
+                util.removefile(image_path)
                 self.log_info("{}转jpg耗时: {}".format(image_name, time.time() - tmp_time))
+                return new_img_path
             except Exception as e:
                 self.log_exception("{}转换失败\n{}".format(image_url, e))
                 return None
-            if os.path.isfile(image_path) and os.path.isfile(new_img_path):
-                os.remove(image_path)
-                return new_img_path
         else:
             return image_path
+
+    def parser_face(self, user_id, media_id, image):
+        try:
+            tmp_time = time.time()
+            image_np = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            im_height, im_width = image.shape[:2]
+            f = min((4096. / max(image.shape[0], image.shape[1])), 1.0)
+            image_r = cv2.resize(image, (int(image.shape[1] * f), int(image.shape[0] * f)))
+
+            image_np_expanded = np.expand_dims(image_r, axis=0)
+
+            (fd_boxes_, fd_scores_) = fd_ssd_detection.detect_face(image_np_expanded)
+            face_count = 0
+            for idx in range(fd_boxes_[0].shape[0]):
+                if fd_scores_[0][idx] < 0.7:
+                    break
+                ymin, xmin, ymax, xmax = fd_boxes_[0][idx]
+                add_y_border = (ymax - ymin) * 0.1
+                add_x_border = (xmax - xmin) * 0.1
+                xmin_, xmax_ = max(0, xmin - add_x_border), min(1, xmax + add_x_border)
+                ymin_, ymax_ = max(0, ymin - add_y_border), min(1, ymax + add_y_border)
+                left, right, top, bottom = map(
+                    int, (xmin_ * im_width, xmax_ * im_width, ymin_ * im_height, ymax_ * im_height))
+
+                face_image = image_np[top:bottom, left:right, :]
+                if max(face_image.shape[:2]) < 56.:
+                    continue
+                face_image_resize, im_scale = image_resize(face_image)
+                mtcnn_res = fd_mtcnn_detection.detect_face(face_image_resize)
+                if not mtcnn_res:
+                    continue
+                mtcnn_scare = mtcnn_res['confidence']
+                if mtcnn_scare < 0.96:
+                    continue
+                mtcnn_box = mtcnn_res['box']
+                if max(mtcnn_box[2:]) < 50.:
+                    continue
+                mtcnn_points = mtcnn_res['keypoints']
+                mtcnn_points = np.asarray([
+                    [mtcnn_points['left_eye'][0] / im_scale + left,
+                     mtcnn_points['left_eye'][1] / im_scale + top],
+                    [mtcnn_points['right_eye'][0] / im_scale + left,
+                     mtcnn_points['right_eye'][1] / im_scale + top],
+                    [mtcnn_points['nose'][0] / im_scale + left, mtcnn_points['nose'][1] / im_scale + top],
+                    [mtcnn_points['mouth_left'][0] / im_scale + left,
+                     mtcnn_points['mouth_left'][1] / im_scale + top],
+                    [mtcnn_points['mouth_right'][0] / im_scale + left,
+                     mtcnn_points['mouth_right'][1] / im_scale + top],
+                ])
+                warped = image_tools.preprocess(image_np, [112, 112], bbox=mtcnn_box, landmark=mtcnn_points)
+                face_image_path = os.path.join(
+                    conf.tmp_image_dir, "{}_{}.jpg".format(media_id, idx))
+                cv2.imwrite(face_image_path, cv2.cvtColor(face_image, cv2.COLOR_RGB2BGR))
+                oss_face_image_name = "face_cluster_data/{}/face_images/{}_{}.jpg".format(
+                    user_id, media_id, idx)
+                oss_bucket.put_object_from_file(oss_face_image_name, face_image_path)
+                util.removefile(face_image_path)
+
+                emotion_label_arg = self.fe_detection.detection_emotion(warped)
+
+                warped = np.transpose(warped, (2, 0, 1))
+                emb = self.fr_arcface.get_feature(warped)
+
+                redis_user_key = conf.redis_face_info_name.format(user_id)
+                r_object.lpush_content(redis_user_key, json.dumps({
+                    "face_id": "{}_{}".format(media_id, idx),
+                    "face_box": [left, top, right - left, bottom - top],
+                    "face_feature": np.array(emb).tolist(),
+                    "emotionStr": emotion_label_arg,
+                }))
+                r_object.lpush_content(conf.redis_face_info_key_list, redis_user_key)
+
+                face_count += 1
+            self.log_info("{}人脸耗时: {}".format(media_id, time.time() - tmp_time))
+            return face_count
+        except Exception as e:
+            self.log_exception("{}转换失败\n{}".format(media_id, e))
+            return 0
 
     def check_restart(self, params_count):
         reboot_code = r_object.get_content(local_ip)
@@ -215,13 +319,13 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         time.sleep(9 / max(1, params_count))
 
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
-        self.log_info("开始加载局部模型...")
-        aesthetic_model = image_quality_assessment_interface.QualityAssessmentModel(
-            model_path='./models/weights_mobilenet_aesthetic_0.07.hdf5')
-        technical_model = image_quality_assessment_interface.QualityAssessmentModel(
-            model_path='./models/weights_mobilenet_technical_0.11.hdf5')
-        fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
-        fe_detectrion = face_emotion_interface.FaceEmotionKeras()  # 表情检测模型, 不能跨线程
+        self.log_info("图片解析线程已启动...")
+        # aesthetic_model = image_quality_assessment_interface.QualityAssessmentModel(
+        #     model_path='./models/weights_mobilenet_aesthetic_0.07.hdf5')
+        # technical_model = image_quality_assessment_interface.QualityAssessmentModel(
+        #     model_path='./models/weights_mobilenet_technical_0.11.hdf5')
+        # fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
+        # fe_detection = face_emotion_interface.FaceEmotionKeras()  # 表情检测模型, 不能跨线程
         while True:
             params_count = r_object.llen_content(conf.res_image_making_name)
             params = r_object.rpop_content(conf.res_image_making_name)
@@ -242,8 +346,8 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 start_time = time.time()
                 assessment_img = np.asarray(
                     keras.preprocessing.image.load_img(image_path, target_size=(224, 224)))
-                aesthetic_value = aesthetic_model.get_res(assessment_img)
-                technical_value = technical_model.get_res(assessment_img)
+                aesthetic_value = self.aesthetic_model.get_res(assessment_img)
+                technical_value = self.technical_model.get_res(assessment_img)
                 aesthetic_value = aesthetic_value * 0.8 + technical_value * 0.2
 
                 image = cv2.imread(image_path)
@@ -252,77 +356,77 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                     image)
                 self.log_info("{}打标耗时: {}".format(os.path.basename(image_path), time.time() - tmp_time))
 
-                tmp_time = time.time()
-                image_np = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-                im_height, im_width = image.shape[:2]
-                f = min((4096. / max(image.shape[0], image.shape[1])), 1.0)
-                image_r = cv2.resize(image, (int(image.shape[1] * f), int(image.shape[0] * f)))
-
-                image_np_expanded = np.expand_dims(image_r, axis=0)
-
-                (fd_boxes_, fd_scores_) = fd_ssd_detection.detect_face(image_np_expanded)
-                face_count = 0
-                for i in range(fd_boxes_[0].shape[0]):
-                    if fd_scores_[0][i] < 0.7:
-                        break
-                    ymin, xmin, ymax, xmax = fd_boxes_[0][i]
-                    add_y_border = (ymax - ymin) * 0.1
-                    add_x_border = (xmax - xmin) * 0.1
-                    xmin_, xmax_ = max(0, xmin - add_x_border), min(1, xmax + add_x_border)
-                    ymin_, ymax_ = max(0, ymin - add_y_border), min(1, ymax + add_y_border)
-                    left, right, top, bottom = map(
-                        int, (xmin_ * im_width, xmax_ * im_width, ymin_ * im_height, ymax_ * im_height))
-
-                    face_image = image_np[top:bottom, left:right, :]
-                    if max(face_image.shape[:2]) < 56.:
-                        continue
-                    face_image_resize, im_scale = image_resize(face_image)
-                    mtcnn_res = fd_mtcnn_detection.detect_face(face_image_resize)
-                    if not mtcnn_res:
-                        continue
-                    mtcnn_scare = mtcnn_res['confidence']
-                    if mtcnn_scare < 0.96:
-                        continue
-                    mtcnn_box = mtcnn_res['box']
-                    if max(mtcnn_box[2:]) < 50.:
-                        continue
-                    mtcnn_points = mtcnn_res['keypoints']
-                    mtcnn_points = np.asarray([
-                        [mtcnn_points['left_eye'][0] / im_scale + left,
-                         mtcnn_points['left_eye'][1] / im_scale + top],
-                        [mtcnn_points['right_eye'][0] / im_scale + left,
-                         mtcnn_points['right_eye'][1] / im_scale + top],
-                        [mtcnn_points['nose'][0] / im_scale + left, mtcnn_points['nose'][1] / im_scale + top],
-                        [mtcnn_points['mouth_left'][0] / im_scale + left,
-                         mtcnn_points['mouth_left'][1] / im_scale + top],
-                        [mtcnn_points['mouth_right'][0] / im_scale + left,
-                         mtcnn_points['mouth_right'][1] / im_scale + top],
-                    ])
-                    warped = image_tools.preprocess(image_np, [112, 112], bbox=mtcnn_box, landmark=mtcnn_points)
-                    face_image_name = os.path.join(
-                        conf.tmp_image_dir, "{}_{}.jpg".format(media_id, i))
-                    cv2.imwrite(face_image_name, cv2.cvtColor(face_image, cv2.COLOR_RGB2BGR))
-                    oss_face_image_name = "face_cluster_data/{}/face_images/{}_{}.jpg".format(
-                        user_id, media_id, i)
-                    oss_bucket.put_object_from_file(oss_face_image_name, face_image_name)
-                    if os.path.isfile(face_image_name):
-                        os.remove(face_image_name)
-
-                    emotion_label_arg = fe_detectrion.detection_emotion(warped)
-
-                    warped = np.transpose(warped, (2, 0, 1))
-                    emb = fr_arcface.get_feature(warped)
-
-                    redis_user_key = conf.redis_face_info_name.format(user_id)
-                    r_object.lpush_content(redis_user_key, json.dumps({
-                        "face_id": "{}_{}".format(media_id, i),
-                        "face_box": [left, top, right - left, bottom - top],
-                        "face_feature": np.array(emb).tolist(),
-                        "emotionStr": emotion_label_arg,
-                    }))
-                    r_object.lpush_content(conf.redis_face_info_key_list, redis_user_key)
-
-                    face_count += 1
+                face_count = self.parser_face(user_id, media_id, image)
+                # tmp_time = time.time()
+                # image_np = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                # im_height, im_width = image.shape[:2]
+                # f = min((4096. / max(image.shape[0], image.shape[1])), 1.0)
+                # image_r = cv2.resize(image, (int(image.shape[1] * f), int(image.shape[0] * f)))
+                #
+                # image_np_expanded = np.expand_dims(image_r, axis=0)
+                #
+                # (fd_boxes_, fd_scores_) = fd_ssd_detection.detect_face(image_np_expanded)
+                # face_count = 0
+                # for idx in range(fd_boxes_[0].shape[0]):
+                #     if fd_scores_[0][idx] < 0.7:
+                #         break
+                #     ymin, xmin, ymax, xmax = fd_boxes_[0][idx]
+                #     add_y_border = (ymax - ymin) * 0.1
+                #     add_x_border = (xmax - xmin) * 0.1
+                #     xmin_, xmax_ = max(0, xmin - add_x_border), min(1, xmax + add_x_border)
+                #     ymin_, ymax_ = max(0, ymin - add_y_border), min(1, ymax + add_y_border)
+                #     left, right, top, bottom = map(
+                #         int, (xmin_ * im_width, xmax_ * im_width, ymin_ * im_height, ymax_ * im_height))
+                #
+                #     face_image = image_np[top:bottom, left:right, :]
+                #     if max(face_image.shape[:2]) < 56.:
+                #         continue
+                #     face_image_resize, im_scale = image_resize(face_image)
+                #     mtcnn_res = fd_mtcnn_detection.detect_face(face_image_resize)
+                #     if not mtcnn_res:
+                #         continue
+                #     mtcnn_scare = mtcnn_res['confidence']
+                #     if mtcnn_scare < 0.96:
+                #         continue
+                #     mtcnn_box = mtcnn_res['box']
+                #     if max(mtcnn_box[2:]) < 50.:
+                #         continue
+                #     mtcnn_points = mtcnn_res['keypoints']
+                #     mtcnn_points = np.asarray([
+                #         [mtcnn_points['left_eye'][0] / im_scale + left,
+                #          mtcnn_points['left_eye'][1] / im_scale + top],
+                #         [mtcnn_points['right_eye'][0] / im_scale + left,
+                #          mtcnn_points['right_eye'][1] / im_scale + top],
+                #         [mtcnn_points['nose'][0] / im_scale + left, mtcnn_points['nose'][1] / im_scale + top],
+                #         [mtcnn_points['mouth_left'][0] / im_scale + left,
+                #          mtcnn_points['mouth_left'][1] / im_scale + top],
+                #         [mtcnn_points['mouth_right'][0] / im_scale + left,
+                #          mtcnn_points['mouth_right'][1] / im_scale + top],
+                #     ])
+                #     warped = image_tools.preprocess(image_np, [112, 112], bbox=mtcnn_box, landmark=mtcnn_points)
+                #     face_image_path = os.path.join(
+                #         conf.tmp_image_dir, "{}_{}.jpg".format(media_id, idx))
+                #     cv2.imwrite(face_image_path, cv2.cvtColor(face_image, cv2.COLOR_RGB2BGR))
+                #     oss_face_image_name = "face_cluster_data/{}/face_images/{}_{}.jpg".format(
+                #         user_id, media_id, idx)
+                #     oss_bucket.put_object_from_file(oss_face_image_name, face_image_path)
+                #     util.removefile(face_image_path)
+                #
+                #     emotion_label_arg = fe_detection.detection_emotion(warped)
+                #
+                #     warped = np.transpose(warped, (2, 0, 1))
+                #     emb = fr_arcface.get_feature(warped)
+                #
+                #     redis_user_key = conf.redis_face_info_name.format(user_id)
+                #     r_object.lpush_content(redis_user_key, json.dumps({
+                #         "face_id": "{}_{}".format(media_id, idx),
+                #         "face_box": [left, top, right - left, bottom - top],
+                #         "face_feature": np.array(emb).tolist(),
+                #         "emotionStr": emotion_label_arg,
+                #     }))
+                #     r_object.lpush_content(conf.redis_face_info_key_list, redis_user_key)
+                #
+                #     face_count += 1
                 self.log_info("{}人脸耗时: {}".format(os.path.basename(image_path), time.time() - tmp_time))
 
                 data_json = {
@@ -334,10 +438,20 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                     'identity': str({"isIDCard": 0}),
                     'existFace': min(face_count, 127),
                 }
-                call_res = requests.post(callback_url, json=data_json)
-                self.log_info("返回代码: {}, 返回内容: {}".format(call_res.status_code, call_res.text))
-                if os.path.isfile(image_path):
-                    os.remove(image_path)
+
+                call_results_status = self.call_url_func(callback_url, data_json=data_json)
+                if not call_results_status:
+                    # 回调失败, 保存结果
+                    self.log_error("结果列表回调失败, 保存结果至oss!")
+                    oss_bucket.put_object(
+                        "face_cluster_call_error_data/{}.pkl".format(media_id),
+                        pickle.dumps({
+                            "callback_url": callback_url,
+                            "data_json": data_json,
+                        }))
+                # call_res = requests.post(callback_url, json=data_json)
+                # self.log_info("返回代码: {}, 返回内容: {}".format(call_res.status_code, call_res.text))
+                util.removefile(image_path)
                 self.log_info("{} 处理成功, 耗时: {}".format(os.path.basename(image_url), time.time() - start_time))
             except Exception as e:
                 self.log_exception("{} 处理失败\n{}".format(image_url, e))
@@ -379,7 +493,6 @@ if __name__ == '__main__':
     logging.info("即将开启的线程数: {}".format(conf.thread_num))
     # 创建线程并开始线程
     for i in range(conf.thread_num):
-        # for i in range(3):
         ImageProcessingThread("Thread_{}".format(i)).start()
 
     for i in range(2):

@@ -10,6 +10,11 @@ def makedirs(path):
         os.makedirs(path)
 
 
+def removefile(path):
+    if os.path.isfile(path):
+        os.remove(path)
+
+
 def get_local_ip():
     # 获取本机ip
     hostname = socket.gethostname()
