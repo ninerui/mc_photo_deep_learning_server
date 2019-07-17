@@ -195,7 +195,9 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         if image_type.lower() == '.heic':
             new_img_path = os.path.join(conf.tmp_image_dir, "{}.jpg".format(image_id))
             try:
+                tmp_time = time.time()
                 os.system("./tools/tifig -v -p {} {}".format(image_path, new_img_path))
+                self.log_info("{}转jpg耗时: {}".format(image_name, time.time() - tmp_time))
             except Exception as e:
                 self.log_exception("{}转换失败\n{}".format(image_url, e))
                 return None
@@ -210,9 +212,6 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             self.log_info('发现服务需要重启, 重启代码: {}'.format(reboot_code))
             raise SystemExit
         time.sleep(9 / max(1, params_count))
-
-    def parser_face(self):
-        pass
 
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
         self.log_info("开始加载局部模型...")
@@ -247,9 +246,12 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 aesthetic_value = aesthetic_value * 0.8 + technical_value * 0.2
 
                 image = cv2.imread(image_path)
+                tmp_time = time.time()
                 tags = oi_5000_model.get_tag(image_path) + ml_1000_model.get_tag(image) + ml_11166_model.get_tag(
                     image)
+                self.log_info("{}打标耗时: {}".format(os.path.basename(image_path), time.time() - tmp_time))
 
+                tmp_time = time.time()
                 image_np = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                 im_height, im_width = image.shape[:2]
                 f = min((4096. / max(image.shape[0], image.shape[1])), 1.0)
@@ -320,6 +322,8 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                     r_object.lpush_content(conf.redis_face_info_key_list, redis_user_key)
 
                     face_count += 1
+                self.log_info("{}人脸耗时: {}".format(os.path.basename(image_path), time.time() - tmp_time))
+
                 data_json = {
                     'mediaId': media_id,
                     'fileId': file_id,
