@@ -334,8 +334,8 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 self.log_info("{} 处理成功, 耗时: {}".format(os.path.basename(image_url), time.time() - start_time))
             except Exception as e:
                 self.log_exception("{} 处理失败\n{}".format(image_url, e))
-                self.check_restart(params_count)
-                continue
+            finally:
+                self.check_restart(9)
 
 
 if __name__ == '__main__':
