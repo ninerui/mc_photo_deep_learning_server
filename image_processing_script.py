@@ -192,7 +192,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             self.log_exception("{}下载失败\n{}".format(image_url, e))
             return None
         image_id, image_type = os.path.splitext(image_name)
-        if image_type.lower == 'heic':
+        if image_type.lower() == '.heic':
             new_img_path = os.path.join(conf.tmp_image_dir, "{}.jpg".format(image_id))
             try:
                 os.system("./tools/tifig -v -p {} {}".format(image_path, new_img_path))
@@ -210,6 +210,9 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             self.log_info('发现服务需要重启, 重启代码: {}'.format(reboot_code))
             raise SystemExit
         time.sleep(9 / max(1, params_count))
+
+    def parser_face(self):
+        pass
 
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
         self.log_info("开始加载局部模型...")

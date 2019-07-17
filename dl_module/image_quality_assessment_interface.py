@@ -23,5 +23,6 @@ class QualityAssessmentModel:
         self.nima_model.load_weights(model_path)
 
     def get_res(self, img):
-        res = self.nima_model.predict(self.base_model.preprocess_input(np.expand_dims(img, axis=0)))
+        res = self.nima_model.predict(
+            self.base_model.preprocess_input(np.expand_dims(img, axis=0)), use_multiprocessing=True)
         return calc_mean_score(res)
