@@ -217,10 +217,14 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             try:
                 new_img_path = os.path.join(conf.tmp_image_dir, "{}.jpg".format(image_id))
                 tmp_time = time.time()
-                os.system("./tools/tifig -v -p {} {}".format(image_path, new_img_path))
-                # util.removefile(image_path)
+                os.system("convert {} {}".format(image_path, new_img_path))
                 self.log_info("{}转jpg耗时: {}".format(image_name, time.time() - tmp_time))
-                return new_img_path
+                if os.path.isfile(new_img_path):
+                    util.removefile(image_path)
+                    return new_img_path
+                else:
+                    self.log_exception("{}转换失败".format(image_url))
+                    return None
             except Exception as e:
                 self.log_exception("{}转换失败\n{}".format(image_url, e))
                 return None
@@ -313,13 +317,13 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         time.sleep(9 / max(1, params_count))
 
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
-        self.log_info("图片解析线程已启动...")
         aesthetic_model = image_quality_assessment_interface.QualityAssessmentModel(
             model_path='./models/weights_mobilenet_aesthetic_0.07.hdf5')
         technical_model = image_quality_assessment_interface.QualityAssessmentModel(
             model_path='./models/weights_mobilenet_technical_0.11.hdf5')
         fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
         fe_detection = face_emotion_interface.FaceEmotionKeras()  # 表情检测模型, 不能跨线程
+        self.log_info("图片解析线程已启动...")
         while True:
             params_count = r_object.llen_content(conf.res_image_making_name)
             params = r_object.rpop_content(conf.res_image_making_name)
