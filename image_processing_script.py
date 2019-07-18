@@ -415,10 +415,8 @@ if __name__ == '__main__':
         model_path='./models/tencent_11166.pb', label_path='./data/ml_label_11166.txt')
     fd_ssd_detection = face_detection_interface.FaceDetectionWithSSDMobilenet()
     fd_mtcnn_detection = face_detection_interface.FaceDetectionWithMtcnnTF(steps_threshold=[0.6, 0.7, 0.8])
-    aesthetic_model = image_quality_assessment_interface.AestheticQualityModelWithTF(
-        model_path='./models/mobilenet_aesthetic_0.07.pb')
-    technical_model = image_quality_assessment_interface.TechnicalQualityModelWithTF(
-        model_path='./models/mobilenet_technical_0.11.pb')
+    aesthetic_model = image_quality_assessment_interface.AestheticQualityModelWithTF()
+    technical_model = image_quality_assessment_interface.TechnicalQualityModelWithTF()
 
     logging.info("即将开启的线程数: {}".format(conf.thread_num))
     # 创建线程并开始线程
