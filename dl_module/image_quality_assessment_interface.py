@@ -1,5 +1,9 @@
 import numpy as np
 from tensorflow import keras
+import tensorflow as tf
+from tensorflow.python.platform import gfile
+
+preprocess_input = keras.applications.mobilenet.preprocess_input
 
 
 def normalize_labels(labels):
@@ -25,4 +29,36 @@ class QualityAssessmentModel:
     def get_res(self, img):
         res = self.nima_model.predict(
             self.base_model.preprocess_input(np.expand_dims(img, axis=0)), use_multiprocessing=True)
+        return calc_mean_score(res)
+
+
+class AestheticQualityModelWithTF:
+    def __init__(self, model_path='./models/mobilenet_aesthetic_0.07.pb'):
+        f = gfile.FastGFile(model_path, 'rb')
+        graph_def = tf.GraphDef()
+        graph_def.ParseFromString(f.read())
+        f.close()
+        self.sess = tf.Session()
+        self.sess.graph.as_default()
+        tf.import_graph_def(graph_def)
+        self.softmax_tensor = self.sess.graph.get_tensor_by_name('import/dense_1/Softmax:0')
+
+    def get_res(self, img):
+        res = self.sess.run(self.softmax_tensor, {'import/input_1:0': preprocess_input(np.expand_dims(img, axis=0))})
+        return calc_mean_score(res)
+
+
+class TechnicalQualityModelWithTF:
+    def __init__(self, model_path='./models/mobilenet_technical_0.11.pb'):
+        f = gfile.FastGFile(model_path, 'rb')
+        graph_def = tf.GraphDef()
+        graph_def.ParseFromString(f.read())
+        f.close()
+        self.sess = tf.Session()
+        self.sess.graph.as_default()
+        tf.import_graph_def(graph_def)
+        self.softmax_tensor = self.sess.graph.get_tensor_by_name('import/dense_1_1/Softmax:0')
+
+    def get_res(self, img):
+        res = self.sess.run(self.softmax_tensor, {'import/input_1_1:0': preprocess_input(np.expand_dims(img, axis=0))})
         return calc_mean_score(res)
