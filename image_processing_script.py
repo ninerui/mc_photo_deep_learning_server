@@ -26,8 +26,8 @@ try:
     logging.root.removeHandler(absl.logging._absl_handler)
     # https://github.com/abseil/abseil-py/issues/102
     absl.logging._warn_preinit_stderr = False
-except Exception as e:
-    print(e)
+except Exception as e1:
+    print(e1)
     pass
 
 
@@ -175,6 +175,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         threading.Thread.__init__(self)
         self.thread_name = thread_name
         self.log_content = "线程名: {}".format(thread_name) + ", {}"
+        time.sleep(0.01)
 
     def log_error(self, content):
         logging.error(self.log_content.format(content))
@@ -319,7 +320,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         time.sleep(9 / max(1, params_count))
 
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
-        fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
+        # fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
         fe_detection = face_emotion_interface.FaceEmotionKeras()  # 表情检测模型, 不能跨线程
         self.log_info("图片解析线程已启动...")
         while True:
@@ -422,6 +423,8 @@ if __name__ == '__main__':
     technical_model = image_quality_assessment_interface.TechnicalQualityModelWithTF()
 
     is_idcard_model = zhouwen_image_card_classify_interface.IDCardClassify()
+
+    fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
 
     logging.info("即将开启的线程数: {}".format(conf.thread_num))
     # 创建线程并开始线程
