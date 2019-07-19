@@ -16,6 +16,7 @@ from utils import connects, util, image_tools
 from dl_module import face_cluster_interface
 from dl_module import face_emotion_interface
 from dl_module import image_quality_assessment_interface
+from dl_module import zhouwen_image_card_classify_interface
 from dl_module import image_making_interface, face_detection_interface, face_recognition_interface
 
 try:
@@ -318,10 +319,6 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         time.sleep(9 / max(1, params_count))
 
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
-        # aesthetic_model = image_quality_assessment_interface.QualityAssessmentModel(
-        #     model_path='./models/weights_mobilenet_aesthetic_0.07.hdf5')
-        # technical_model = image_quality_assessment_interface.QualityAssessmentModel(
-        #     model_path='./models/weights_mobilenet_technical_0.11.hdf5')
         fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
         fe_detection = face_emotion_interface.FaceEmotionKeras()  # 表情检测模型, 不能跨线程
         self.log_info("图片解析线程已启动...")
@@ -350,6 +347,12 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 aesthetic_value = aesthetic_value * 0.8 + technical_value * 0.2
 
                 image = cv2.imread(image_path)
+
+                gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+                tmp_time = time.time()
+                is_idcard = is_idcard_model.get_res(gray_image)
+                self.log_info("{}证件识别耗时: {}".format(os.path.basename(image_path), time.time() - tmp_time))
+
                 tmp_time = time.time()
                 tags = oi_5000_model.get_tag(image_path) + ml_1000_model.get_tag(image) + ml_11166_model.get_tag(
                     image)
@@ -363,7 +366,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                     'tag': str(tags),
                     'filePath': image_url,
                     'exponent': aesthetic_value,
-                    'identity': str({"isIDCard": 0}),
+                    'identity': str({"isIDCard": is_idcard}),
                     'existFace': min(face_count, 127),
                 }
 
@@ -417,6 +420,8 @@ if __name__ == '__main__':
     fd_mtcnn_detection = face_detection_interface.FaceDetectionWithMtcnnTF(steps_threshold=[0.6, 0.7, 0.8])
     aesthetic_model = image_quality_assessment_interface.AestheticQualityModelWithTF()
     technical_model = image_quality_assessment_interface.TechnicalQualityModelWithTF()
+
+    is_idcard_model = zhouwen_image_card_classify_interface.IDCardClassify()
 
     logging.info("即将开启的线程数: {}".format(conf.thread_num))
     # 创建线程并开始线程
