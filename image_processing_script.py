@@ -320,8 +320,8 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
         # aesthetic_model = image_quality_assessment_interface.QualityAssessmentModel(
         #     model_path='./models/weights_mobilenet_aesthetic_0.07.hdf5')
-        technical_model = image_quality_assessment_interface.QualityAssessmentModel(
-            model_path='./models/weights_mobilenet_technical_0.11.hdf5')
+        # technical_model = image_quality_assessment_interface.QualityAssessmentModel(
+        #     model_path='./models/weights_mobilenet_technical_0.11.hdf5')
         fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
         fe_detection = face_emotion_interface.FaceEmotionKeras()  # 表情检测模型, 不能跨线程
         self.log_info("图片解析线程已启动...")
@@ -416,7 +416,7 @@ if __name__ == '__main__':
     fd_ssd_detection = face_detection_interface.FaceDetectionWithSSDMobilenet()
     fd_mtcnn_detection = face_detection_interface.FaceDetectionWithMtcnnTF(steps_threshold=[0.6, 0.7, 0.8])
     aesthetic_model = image_quality_assessment_interface.AestheticQualityModelWithTF()
-    # technical_model = image_quality_assessment_interface.TechnicalQualityModelWithTF()
+    technical_model = image_quality_assessment_interface.TechnicalQualityModelWithTF()
 
     logging.info("即将开启的线程数: {}".format(conf.thread_num))
     # 创建线程并开始线程
