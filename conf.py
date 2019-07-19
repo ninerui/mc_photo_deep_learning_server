@@ -9,7 +9,7 @@ env_manage = {
 log_dir = './log'
 tmp_image_dir = '../tmp_image_dir'
 
-thread_num = 4
+thread_num = 3
 
 redis_image_queue_name = "mc_image_queue_list"
 redis_face_info_name = "mc_face_info_list-{}"
