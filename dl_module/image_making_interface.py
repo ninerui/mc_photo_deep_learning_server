@@ -66,12 +66,15 @@ class ImageMakingWithOpenImage:
         predictions_eval = self.oi_5000_sess.run(self.oi_5000_prob, feed_dict={self.oi_5000_input: [compressed_image]})
         top_k = predictions_eval.argsort()[::-1]
         tag = []
+        is_black_and_white = 0
         for i in top_k:
+            if i == 550:  # 是黑白图
+                is_black_and_white = 1
             confidence = predictions_eval[i]
             if confidence < threshold:
                 break
             tag.append({"value": self.labels.get(str(i), ""), "confidence": (int(confidence * 100) + 5000)})
-        return tag
+        return tag, is_black_and_white
 
 
 class ImageMakingWithTencent:

@@ -355,7 +355,8 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 self.log_info("{}证件识别耗时: {}".format(os.path.basename(image_path), time.time() - tmp_time))
 
                 tmp_time = time.time()
-                tags = oi_5000_model.get_tag(image_path) + ml_1000_model.get_tag(image) + ml_11166_model.get_tag(
+                oi_5000_tag, is_black_and_white = oi_5000_model.get_tag(image_path)
+                tags = oi_5000_tag + ml_1000_model.get_tag(image) + ml_11166_model.get_tag(
                     image)
                 self.log_info("{}打标耗时: {}".format(os.path.basename(image_path), time.time() - tmp_time))
 
@@ -367,7 +368,8 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                     'tag': str(tags),
                     'filePath': image_url,
                     'exponent': aesthetic_value,
-                    'identity': str({"isIDCard": is_idcard}),
+                    'mediaInfo': str({"isIDCard": is_idcard, "isBlackAndWhite": is_black_and_white}),
+                    # 'identity': str({"isIDCard": is_idcard}),
                     'existFace': min(face_count, 127),
                 }
 
