@@ -63,17 +63,6 @@ def image_making():
         if request.method == 'POST':
             request_data = str(request.get_data(), encoding='utf-8')
             request_data = eval(request_data)
-            # request_data = pickle.dumps(request_data)
-            # media_id = request_data.get('media_id')
-            # image_url = request_data.get('image_url')
-            # callback_url = request_data.get("callback_url")
-            # file_id = request_data.get("file_id")
-            # params = {
-            #     'media_id': media_id,
-            #     'image_url': image_url,
-            #     'callback_url': callback_url,
-            #     'file_id': file_id
-            # }
             try:
                 r_object.lpush_content(conf.res_image_making_name, json.dumps(request_data))
             except Exception as e:

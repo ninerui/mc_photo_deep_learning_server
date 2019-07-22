@@ -349,7 +349,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
 
                 image = cv2.imread(image_path)
 
-                gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+                gray_image = cv2.cvtColor(cv2.resize(image, (224, 224)), cv2.COLOR_BGR2GRAY)
                 tmp_time = time.time()
                 is_idcard = is_idcard_model.get_res(gray_image)
                 self.log_info("{}证件识别耗时: {}".format(os.path.basename(image_path), time.time() - tmp_time))
