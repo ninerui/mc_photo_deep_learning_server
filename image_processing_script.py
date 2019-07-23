@@ -351,14 +351,14 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
 
                 gray_image = cv2.cvtColor(cv2.resize(image, (64, 64)), cv2.COLOR_BGR2GRAY)
                 tmp_time = time.time()
-                # is_idcard = is_idcard_model.get_res(gray_image)
+                is_idcard = is_idcard_model.get_res(gray_image)
                 is_idcard = 0
                 self.log_info("{}证件识别耗时: {}".format(os.path.basename(image_path), time.time() - tmp_time))
 
                 tmp_time = time.time()
                 oi_5000_tag, is_black_and_white = oi_5000_model.get_tag(image_path)
-                tags = oi_5000_tag + ml_1000_model.get_tag(image) + ml_11166_model.get_tag(
-                    image)
+                tags = oi_5000_tag
+                       # + ml_1000_model.get_tag(image) + ml_11166_model.get_tag(image)
                 self.log_info("{}打标耗时: {}".format(os.path.basename(image_path), time.time() - tmp_time))
 
                 face_count = self.parser_face(user_id, media_id, image, fe_detection, fr_arcface)
@@ -425,7 +425,7 @@ if __name__ == '__main__':
     aesthetic_model = image_quality_assessment_interface.AestheticQualityModelWithTF()
     technical_model = image_quality_assessment_interface.TechnicalQualityModelWithTF()
 
-    # is_idcard_model = zhouwen_image_card_classify_interface.IDCardClassify()
+    is_idcard_model = zhouwen_image_card_classify_interface.IDCardClassify()
 
     fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
 

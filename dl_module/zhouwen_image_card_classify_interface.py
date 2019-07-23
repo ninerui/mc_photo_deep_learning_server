@@ -12,7 +12,7 @@ class IDCardClassify:
         self.sess.graph.as_default()
         tf.import_graph_def(graph_def, name='')
         self.input = self.sess.graph.get_tensor_by_name('id_card_classify/input_1:0')
-        self.softmax_tensor = self.sess.graph.get_tensor_by_name('id_card_classify/dense_1/Softmax:0')
+        self.softmax_tensor = self.sess.graph.get_tensor_by_name('id_card_classify/act_softmax/Softmax:0')
 
     def get_res(self, img):
         with self.sess.graph.as_default():
