@@ -18,6 +18,7 @@ from dl_module import face_emotion_interface
 from dl_module import image_quality_assessment_interface
 from dl_module import zhouwen_image_card_classify_interface
 from dl_module import image_making_interface, face_detection_interface, face_recognition_interface
+# from dl_module import object_detection_interface
 
 try:
     import absl.logging
@@ -244,7 +245,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
 
             image_np_expanded = np.expand_dims(image_r, axis=0)
 
-            (fd_boxes_, fd_scores_) = fd_ssd_detection.detect_face(image_np_expanded)
+            fd_boxes_, fd_scores_ = fd_ssd_detection.detect_face(image_np_expanded)
             face_count = 0
             for idx in range(fd_boxes_[0].shape[0]):
                 if fd_scores_[0][idx] < 0.7:
@@ -319,6 +320,28 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             raise SystemExit
         time.sleep(9 / max(1, params_count))
 
+    # def get_is_local_color(self, image):
+    #     res = 0
+    #     try:
+    #         tmp_time = time.time()
+    #         image_np = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    #         image_np_expanded = np.expand_dims(image_np, axis=0)
+    #         od_boxes_, od_scores_, od_classes_ = od_model.detect_object(image_np_expanded)
+    #         for idx in range(od_boxes_[0].shape[0]):
+    #             if od_scores_[0][idx] < 0.2:
+    #                 break
+    #             tmp_classes = od_classes_[0][idx]
+    #             if int(tmp_classes) in [308, 228, 69]:
+    #                 ymin, xmin, ymax, xmax = od_boxes_[0][idx]
+    #                 if xmin <= 0.3 and xmax >= 0.7:
+    #                     res = 1
+    #                     break
+    #         self.log_info("目标检测耗时: {}".format(time.time() - tmp_time))
+    #     except Exception as e:
+    #         self.log_exception(e)
+    #     finally:
+    #         return res
+
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
         # fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
         fe_detection = face_emotion_interface.FaceEmotionKeras()  # 表情检测模型, 不能跨线程
@@ -337,6 +360,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             file_id = params.get('file_id')
             callback_url = params.get('callback_url')
             try:
+                certificate_info = []
                 image_path = self.download_image(image_url)
                 if not image_path:
                     continue
@@ -351,16 +375,19 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
 
                 gray_image = cv2.cvtColor(cv2.resize(image, (64, 64)), cv2.COLOR_BGR2GRAY)
                 tmp_time = time.time()
-                is_idcard = is_idcard_model.get_res(gray_image)
+                is_id_card = is_idcard_model.get_res(gray_image)
+                if is_id_card == 1:
+                    certificate_info.append('身份证')
                 # is_idcard = 0
                 self.log_info("{}证件识别耗时: {}".format(os.path.basename(image_path), time.time() - tmp_time))
 
                 tmp_time = time.time()
                 oi_5000_tag, is_black_and_white = oi_5000_model.get_tag(image_path)
                 tags = oi_5000_tag
-                       # + ml_1000_model.get_tag(image) + ml_11166_model.get_tag(image)
+                # + ml_1000_model.get_tag(image) + ml_11166_model.get_tag(image)
                 self.log_info("{}打标耗时: {}".format(os.path.basename(image_path), time.time() - tmp_time))
-
+                # is_local_color = self.get_is_local_color(image)
+                is_local_color = 0
                 face_count = self.parser_face(user_id, media_id, image, fe_detection, fr_arcface)
 
                 data_json = {
@@ -369,7 +396,9 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                     'tag': str(tags),
                     'filePath': image_url,
                     'exponent': aesthetic_value,
-                    'mediaInfo': str({"isIDCard": is_idcard, "isBlackAndWhite": is_black_and_white}),
+                    'mediaInfo': str({"certificateInfo": certificate_info, }),
+                    "isBlackAndWhite": is_black_and_white,
+                    "isLocalColor": is_local_color,
                     # 'identity': str({"isIDCard": is_idcard}),
                     'existFace': min(face_count, 127),
                 }
@@ -428,6 +457,8 @@ if __name__ == '__main__':
     is_idcard_model = zhouwen_image_card_classify_interface.IDCardClassify()
 
     fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
+
+    # od_model = object_detection_interface.ObjectDetectionWithSSDMobilenetV2()
 
     logging.info("即将开启的线程数: {}".format(conf.thread_num))
     # 创建线程并开始线程
