@@ -9,6 +9,10 @@ env_manage = {
 log_dir = './log'
 tmp_image_dir = '../tmp_image_dir'
 
+image_process_thread_num = 4
+face_cluster_thread_num = 1
+wonderful_gen_thread_num = 1
+
 thread_num = 3
 
 redis_image_queue_name = "mc_image_queue_list"
@@ -18,6 +22,7 @@ redis_face_info_key_list = "mc_face_info_key_list"
 
 res_face_cluster_name = "mc_face_cluster_list"
 res_image_making_name = "mc_image_making_list"
+res_wonderful_gen_name = "mc_wonderful_gen_list"
 
 handle_result_url = "http://47.112.110.202:8081/ai/updateFaceId"
 

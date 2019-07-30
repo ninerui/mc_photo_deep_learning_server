@@ -7,6 +7,8 @@ import threading
 from urllib.request import urlretrieve
 
 import cv2
+import imageio
+from PIL import Image
 import numpy as np
 import requests
 from tensorflow import keras
@@ -18,6 +20,9 @@ from dl_module import face_emotion_interface
 from dl_module import image_quality_assessment_interface
 from dl_module import zhouwen_image_card_classify_interface
 from dl_module import image_making_interface, face_detection_interface, face_recognition_interface
+
+# from dl_module import image_enhancement_interface
+
 # from dl_module import object_detection_interface
 
 try:
@@ -30,6 +35,34 @@ try:
 except Exception as e1:
     print(e1)
     pass
+
+
+# def download_image(image_url):
+#     image_name = os.path.basename(image_url)
+#     image_path = os.path.join(conf.tmp_image_dir, image_name)
+#     try:
+#         urlretrieve(image_url, image_path)
+#     except Exception as e:
+#         # self.log_exception("{}下载失败\n{}".format(image_url, e))
+#         return None
+#     image_id, image_type = os.path.splitext(image_name)
+#     if image_type.lower() == '.heic':
+#         try:
+#             new_img_path = os.path.join(conf.tmp_image_dir, "{}.jpg".format(image_id))
+#             tmp_time = time.time()
+#             os.system("convert {} {}".format(image_path, new_img_path))
+#             # self.log_info("{}转jpg耗时: {}".format(image_name, time.time() - tmp_time))
+#             if os.path.isfile(new_img_path):
+#                 util.removefile(image_path)
+#                 return new_img_path
+#             else:
+#                 # self.log_exception("{}转换失败".format(image_url))
+#                 return None
+#         except Exception as e:
+#             # self.log_exception("{}转换失败\n{}".format(image_url, e))
+#             return None
+#     else:
+#         return image_path
 
 
 class FilePathConf:
@@ -421,6 +454,53 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 self.check_restart(9)
 
 
+class GenerationWonderfulImageThread(threading.Thread):
+    def __init__(self, thread_name):
+        threading.Thread.__init__(self)
+        self.thread_name = thread_name
+        self.log_content = "线程名: {}".format(thread_name) + ", {}"
+        time.sleep(0.01)
+
+    def log_error(self, content):
+        logging.error(self.log_content.format(content))
+
+    def log_info(self, content):
+        logging.info(self.log_content.format(content))
+
+    def log_exception(self, content):
+        logging.exception(self.log_content.format(content))
+
+    def check_restart(self, params_count):
+        reboot_code = r_object.get_content(local_ip)
+        if reboot_code == '1':
+            self.log_info('发现服务需要重启, 重启代码: {}'.format(reboot_code))
+            raise SystemExit
+        time.sleep(9 / max(1, params_count))
+
+    def run(self):
+        self.log_info("精彩生成线程已启动...")
+        while True:
+            params_count = r_object.llen_content(conf.res_wonderful_gen_name)
+            params = r_object.rpop_content(conf.res_wonderful_gen_name)
+            if not params:
+                self.check_restart(params_count)
+                continue
+            self.log_info("开始生成精彩, 剩余数据: {} 条".format(params_count - 1))
+            params = json.loads(params)
+            wonderful_type = params.get("type")
+            user_id = params.get("user_id")
+            media_id = params.get("media_id")
+            image_url = params.get('image_url')
+            callback_url = params.get('callback_url')
+            if int(wonderful_type) == 11:  # 风格化照片
+                image_path = self.download_image(image_url)
+                image = imageio.imread(r'.\2019_07_23_20_49_IMG_0032.JPG')
+                image = np.array(Image.fromarray(image).resize((1440, 1920)))
+                image = np.reshape(image, [1, image.shape[0], image.shape[1], 3]) / 255
+                # output = image_enhancement_model.get_image(image)
+                # imageio.imwrite("./0.png", output[0] * 255)
+
+
 if __name__ == '__main__':
     # 创建日志文件
     util.makedirs(conf.log_dir)
@@ -445,10 +525,10 @@ if __name__ == '__main__':
 
     logging.info("加载全局模型...")
     oi_5000_model = image_making_interface.ImageMakingWithOpenImage()
-    ml_1000_model = image_making_interface.ImageMakingWithTencent(
-        model_path='./models/tencent_1000.pb', label_path='./data/ml_label_1000.txt')
-    ml_11166_model = image_making_interface.ImageMakingWithTencent(
-        model_path='./models/tencent_11166.pb', label_path='./data/ml_label_11166.txt')
+    # ml_1000_model = image_making_interface.ImageMakingWithTencent(
+    #     model_path='./models/tencent_1000.pb', label_path='./data/ml_label_1000.txt')
+    # ml_11166_model = image_making_interface.ImageMakingWithTencent(
+    #     model_path='./models/tencent_11166.pb', label_path='./data/ml_label_11166.txt')
     fd_ssd_detection = face_detection_interface.FaceDetectionWithSSDMobilenet()
     fd_mtcnn_detection = face_detection_interface.FaceDetectionWithMtcnnTF(steps_threshold=[0.6, 0.7, 0.8])
     aesthetic_model = image_quality_assessment_interface.AestheticQualityModelWithTF()
@@ -458,15 +538,21 @@ if __name__ == '__main__':
 
     fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
 
+    # image_enhancement_model = image_enhancement_interface.AIChallengeWithDPEDSRCNN()
     # od_model = object_detection_interface.ObjectDetectionWithSSDMobilenetV2()
 
-    logging.info("即将开启的线程数: {}".format(conf.thread_num))
-    # 创建线程并开始线程
-    for i in range(conf.thread_num):
+    # logging.info("即将开启的线程数: {}".format(conf.thread_num))
+    # 创建线程并开始图片打标线程
+    for i in range(conf.image_process_thread_num):
         ImageProcessingThread("Thread_{}".format(i)).start()
 
-    for i in range(2):
+    # 创建线程并开始人脸聚类线程
+    for i in range(conf.face_cluster_thread_num):
         FaceClusterThread("face_cluster_{}".format(i)).start()
+
+    # 创建并开始图片调用线程
+    # for i in range(conf.wonderful_gen_thread_num):
+    #     GenerationWonderfulImageThread("wonderful_generation_{}".format(i)).start()
 
     while True:
         active_thread_count = threading.active_count()
