@@ -9,7 +9,7 @@ env_manage = {
 log_dir = './log'
 tmp_image_dir = '../tmp_image_dir'
 
-image_process_thread_num = 4
+image_process_thread_num = 3
 face_cluster_thread_num = 1
 wonderful_gen_thread_num = 1
 
