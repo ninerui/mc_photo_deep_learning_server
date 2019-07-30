@@ -33,6 +33,17 @@ def _load_dictionary(dict_file):
     return dictionary
 
 
+def _load_dictionary_1(dict_file):
+    dictionary = dict()
+    dictionary_1 = dict()
+    with open(dict_file, 'r', encoding='utf-8') as lines:
+        for line in lines:
+            sp = line.strip().split(',')
+            dictionary[sp[0]] = sp[1]
+            dictionary_1[sp[0]] = sp[2]
+    return dictionary, dictionary_1
+
+
 def preprocess(img):
     raw_h = float(img.shape[0])
     raw_w = float(img.shape[1])
@@ -59,13 +70,14 @@ class ImageMakingWithOpenImage:
         self.oi_5000_sess = tf.Session(graph=oi_5000_graph)
         self.oi_5000_input = oi_5000_graph.get_tensor_by_name('input_values:0')
         self.oi_5000_prob = oi_5000_graph.get_tensor_by_name('multi_predictions:0')
-        self.labels = _load_dictionary("./data/open_image_label_5000.txt")
+        self.labels, self.object = _load_dictionary_1("./data/open_image_label_5000.txt")
 
     def get_tag(self, img_path, threshold=0.5):
         compressed_image = tf.gfile.FastGFile(img_path, 'rb').read()
         predictions_eval = self.oi_5000_sess.run(self.oi_5000_prob, feed_dict={self.oi_5000_input: [compressed_image]})
         top_k = predictions_eval.argsort()[::-1]
         tag = []
+        objects = set()
         is_black_and_white = 0
         for i in top_k:
             if i == 550:  # 是黑白图
@@ -74,7 +86,9 @@ class ImageMakingWithOpenImage:
             if confidence < threshold:
                 break
             tag.append({"value": self.labels.get(str(i), ""), "confidence": (int(confidence * 100) + 5000)})
-        return tag, is_black_and_white
+            if self.object.get(str(i), ""):
+                objects.add(self.object.get(str(i), ""))
+        return tag, is_black_and_white, list(objects)
 
 
 class ImageMakingWithTencent:
