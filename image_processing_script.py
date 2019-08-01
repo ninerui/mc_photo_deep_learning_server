@@ -431,7 +431,8 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                     'tag': str(tags),
                     'filePath': image_url,
                     'exponent': aesthetic_value,
-                    'mediaInfo': str(json.dumps({"certificateInfo": certificate_info, "thingsClass": things_class})),
+                    'mediaInfo': str(json.dumps(
+                        {"certificateInfo": certificate_info, "thingsClass": things_class}, ensure_ascii=False)),
                     "isBlackAndWhite": is_black_and_white,
                     "isLocalColor": is_local_color,
                     # 'identity': str({"isIDCard": is_idcard}),
@@ -592,8 +593,8 @@ if __name__ == '__main__':
         FaceClusterThread("face_cluster_{}".format(i)).start()
 
     # 创建并开始图片调用线程
-    # for i in range(conf.wonderful_gen_thread_num):
-    #     GenerationWonderfulImageThread("wonderful_generation_{}".format(i)).start()
+    for i in range(conf.wonderful_gen_thread_num):
+        GenerationWonderfulImageThread("wonderful_generation_{}".format(i)).start()
 
     while True:
         active_thread_count = threading.active_count()
