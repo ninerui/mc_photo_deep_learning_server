@@ -527,7 +527,9 @@ class GenerationWonderfulImageThread(threading.Thread):
                 image_path = self.download_image(image_url)
                 try:
                     image = imageio.imread(image_path)
-                    # image = np.array(Image.fromarray(image).resize((1440, 1920)))
+                    scale = min(1920. / max(image.shape), 1.)
+                    image = np.array(
+                        Image.fromarray(image).resize((int(image.shape[0] * scale), int(image.shape[1] * scale))))
                     image = np.reshape(image, [1, image.shape[0], image.shape[1], 3]) / 255
                     output = image_enhancement_model.get_image(image)
                     save_path = os.path.join(conf.tmp_image_dir, "{}_11.jpg".format(media_id))
