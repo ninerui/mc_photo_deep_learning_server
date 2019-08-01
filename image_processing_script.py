@@ -406,7 +406,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                     keras.preprocessing.image.load_img(image_path, target_size=(224, 224)))
                 aesthetic_value = aesthetic_model.get_res(assessment_img)
                 technical_value = technical_model.get_res(assessment_img)
-                aesthetic_value = aesthetic_value * 0.8 + technical_value * 0.2
+                aesthetic_value = 100. - (aesthetic_value * 0.8 + technical_value * 0.2)
 
                 image = cv2.imread(image_path)
 
