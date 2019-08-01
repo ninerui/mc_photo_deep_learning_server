@@ -536,6 +536,15 @@ class GenerationWonderfulImageThread(threading.Thread):
                     save_path = os.path.join(conf.tmp_image_dir, "{}_11.jpg".format(media_id))
                     imageio.imwrite(save_path, output[0] * 255)
                     oss_bucket.put_object_from_file("wonderful_image/{}_11.jpg".format(media_id), save_path)
+
+                    print({
+                        "ossKey": "wonderful_image/{}_11.jpg".format(media_id),
+                        "type": wonderful_type,
+                        "oldMediaId": media_id,
+                        "imageLocalPath": image_local_path,
+                        "userId": user_id
+                    })
+
                     call_url_func(user_id, callback_url, {
                         "ossKey": "wonderful_image/{}_11.jpg".format(media_id),
                         "type": wonderful_type,
