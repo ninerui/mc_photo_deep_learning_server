@@ -519,10 +519,11 @@ class GenerationWonderfulImageThread(threading.Thread):
             self.log_info("开始生成精彩, 剩余数据: {} 条".format(params_count - 1))
             params = json.loads(params)
             wonderful_type = params.get("type")
-            user_id = params.get("user_id")
-            media_id = params.get("media_id")
-            image_url = params.get('image_url')
-            callback_url = params.get('callback_url')
+            user_id = params.get("userId")
+            media_id = params.get("mediaId")
+            image_url = params.get('imageUrl')
+            image_local_path = params.get('imageLocalPath')
+            callback_url = params.get('callbackUrl')
             if int(wonderful_type) == 11:  # 风格化照片
                 image_path = self.download_image(image_url)
                 try:
@@ -536,9 +537,11 @@ class GenerationWonderfulImageThread(threading.Thread):
                     imageio.imwrite(save_path, output[0] * 255)
                     oss_bucket.put_object_from_file("wonderful_image/{}_11.jpg".format(media_id), save_path)
                     call_url_func(user_id, callback_url, {
-                        "oss_image_path": "wonderful_image/{}_11.jpg".format(media_id),
+                        "ossKey": "wonderful_image/{}_11.jpg".format(media_id),
                         "type": wonderful_type,
-                        "media_id": media_id
+                        "oldMediaId": media_id,
+                        "imageLocalPath": image_local_path,
+                        "userId": user_id
                     })
                 except Exception as e:
                     self.log_exception(e)

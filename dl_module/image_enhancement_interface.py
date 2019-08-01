@@ -11,4 +11,4 @@ class AIChallengeWithDPEDSRCNN:
         self.output_tensor = graph.get_tensor_by_name('output:0')
 
     def get_image(self, images):
-        return self.sess.run([self.output_tensor], feed_dict={self.image_tensor: images})
+        return self.sess.run(self.output_tensor, feed_dict={self.image_tensor: images})
