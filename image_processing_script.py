@@ -540,7 +540,8 @@ class GenerationWonderfulImageThread(threading.Thread):
                         "type": wonderful_type,
                         "media_id": media_id
                     })
-                except:
+                except Exception as e:
+                    self.log_exception(e)
                     self.log_error("风格化图片失败!")
                 finally:
                     self.check_restart(9)
