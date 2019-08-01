@@ -63,8 +63,12 @@ def image_making():
         if request.method == 'POST':
             request_data = str(request.get_data(), encoding='utf-8')
             request_data = eval(request_data)
+            request_type = request_data.get('type', None)
             try:
-                r_object.lpush_content(conf.res_image_making_name, json.dumps(request_data))
+                if request_type:  # 精彩图片合成
+                    r_object.lpush_content(conf.res_wonderful_gen_name, json.dumps(request_data))
+                else:  # 图片打标
+                    r_object.lpush_content(conf.res_image_making_name, json.dumps(request_data))
             except Exception as e:
                 logging.exception(e)
                 return json.dumps(conf.status_code['37'])

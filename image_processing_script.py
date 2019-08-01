@@ -20,8 +20,7 @@ from dl_module import face_emotion_interface
 from dl_module import image_quality_assessment_interface
 from dl_module import zhouwen_image_card_classify_interface
 from dl_module import image_making_interface, face_detection_interface, face_recognition_interface
-
-# from dl_module import image_enhancement_interface
+from dl_module import image_enhancement_interface
 
 # from dl_module import object_detection_interface
 
@@ -273,7 +272,8 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         else:
             return image_path
 
-    def parser_face(self, user_id, media_id, image, fe_detection, fr_arcface):
+    def parser_face(self, user_id, media_id, image, fe_detection, fr_model):
+        face_count = 0
         try:
             tmp_time = time.time()
             image_np = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -284,8 +284,9 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             image_np_expanded = np.expand_dims(image_r, axis=0)
 
             fd_boxes_, fd_scores_ = fd_ssd_detection.detect_face(image_np_expanded)
-            face_count = 0
+
             for idx in range(fd_boxes_[0].shape[0]):
+                # self.log_info('renlianrenlian{}'.format(fd_scores_[0][idx]))
                 if fd_scores_[0][idx] < 0.7:
                     break
                 ymin, xmin, ymax, xmax = fd_boxes_[0][idx]
@@ -311,15 +312,11 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                     continue
                 mtcnn_points = mtcnn_res['keypoints']
                 mtcnn_points = np.asarray([
-                    [mtcnn_points['left_eye'][0] / im_scale + left,
-                     mtcnn_points['left_eye'][1] / im_scale + top],
-                    [mtcnn_points['right_eye'][0] / im_scale + left,
-                     mtcnn_points['right_eye'][1] / im_scale + top],
+                    [mtcnn_points['left_eye'][0] / im_scale + left, mtcnn_points['left_eye'][1] / im_scale + top],
+                    [mtcnn_points['right_eye'][0] / im_scale + left, mtcnn_points['right_eye'][1] / im_scale + top],
                     [mtcnn_points['nose'][0] / im_scale + left, mtcnn_points['nose'][1] / im_scale + top],
-                    [mtcnn_points['mouth_left'][0] / im_scale + left,
-                     mtcnn_points['mouth_left'][1] / im_scale + top],
-                    [mtcnn_points['mouth_right'][0] / im_scale + left,
-                     mtcnn_points['mouth_right'][1] / im_scale + top],
+                    [mtcnn_points['mouth_left'][0] / im_scale + left, mtcnn_points['mouth_left'][1] / im_scale + top],
+                    [mtcnn_points['mouth_right'][0] / im_scale + left, mtcnn_points['mouth_right'][1] / im_scale + top],
                 ])
                 warped = image_tools.preprocess(image_np, [112, 112], bbox=mtcnn_box, landmark=mtcnn_points)
                 face_image_path = os.path.join(
@@ -333,7 +330,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 emotion_label_arg = fe_detection.detection_emotion(warped)
 
                 warped = np.transpose(warped, (2, 0, 1))
-                emb = fr_arcface.get_feature(warped)
+                emb = fr_model.get_feature(warped)
 
                 redis_user_key = conf.redis_face_info_name.format(user_id)
                 r_object.lpush_content(redis_user_key, json.dumps({
@@ -346,9 +343,9 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
 
                 face_count += 1
             self.log_info("{}人脸耗时: {}".format(media_id, time.time() - tmp_time))
-            return face_count
         except Exception as e:
             self.log_exception("{}转换失败\n{}".format(media_id, e))
+        finally:
             return 0
 
     def check_restart(self, params_count):
@@ -482,6 +479,33 @@ class GenerationWonderfulImageThread(threading.Thread):
             raise SystemExit
         time.sleep(9 / max(1, params_count))
 
+    def download_image(self, image_url):
+        image_name = os.path.basename(image_url)
+        image_path = os.path.join(conf.tmp_image_dir, image_name)
+        try:
+            urlretrieve(image_url, image_path)
+        except Exception as e:
+            self.log_exception("{}下载失败\n{}".format(image_url, e))
+            return None
+        image_id, image_type = os.path.splitext(image_name)
+        if image_type.lower() == '.heic':
+            try:
+                new_img_path = os.path.join(conf.tmp_image_dir, "{}.jpg".format(image_id))
+                tmp_time = time.time()
+                os.system("convert {} {}".format(image_path, new_img_path))
+                self.log_info("{}转jpg耗时: {}".format(image_name, time.time() - tmp_time))
+                if os.path.isfile(new_img_path):
+                    util.removefile(image_path)
+                    return new_img_path
+                else:
+                    self.log_exception("{}转换失败".format(image_url))
+                    return None
+            except Exception as e:
+                self.log_exception("{}转换失败\n{}".format(image_url, e))
+                return None
+        else:
+            return image_path
+
     def run(self):
         self.log_info("精彩生成线程已启动...")
         while True:
@@ -499,11 +523,23 @@ class GenerationWonderfulImageThread(threading.Thread):
             callback_url = params.get('callback_url')
             if int(wonderful_type) == 11:  # 风格化照片
                 image_path = self.download_image(image_url)
-                image = imageio.imread(r'.\2019_07_23_20_49_IMG_0032.JPG')
-                image = np.array(Image.fromarray(image).resize((1440, 1920)))
-                image = np.reshape(image, [1, image.shape[0], image.shape[1], 3]) / 255
-                # output = image_enhancement_model.get_image(image)
-                # imageio.imwrite("./0.png", output[0] * 255)
+                try:
+                    image = imageio.imread(image_path)
+                    # image = np.array(Image.fromarray(image).resize((1440, 1920)))
+                    image = np.reshape(image, [1, image.shape[0], image.shape[1], 3]) / 255
+                    output = image_enhancement_model.get_image(image)
+                    save_path = os.path.join(conf.tmp_image_dir, "{}_11.jpg".format(media_id))
+                    imageio.imwrite(save_path, output[0] * 255)
+                    oss_bucket.put_object_from_file("wonderful_image/{}_11.jpg".format(media_id), save_path)
+                    call_url_func(user_id, callback_url, {
+                        "oss_image_path": "wonderful_image/{}_11.jpg".format(media_id),
+                        "type": wonderful_type,
+                        "media_id": media_id
+                    })
+                except:
+                    self.log_error("风格化图片失败!")
+                finally:
+                    self.check_restart(9)
 
 
 if __name__ == '__main__':
@@ -543,7 +579,7 @@ if __name__ == '__main__':
 
     fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
 
-    # image_enhancement_model = image_enhancement_interface.AIChallengeWithDPEDSRCNN()
+    image_enhancement_model = image_enhancement_interface.AIChallengeWithDPEDSRCNN()
     # od_model = object_detection_interface.ObjectDetectionWithSSDMobilenetV2()
 
     # logging.info("即将开启的线程数: {}".format(conf.thread_num))
