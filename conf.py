@@ -10,10 +10,8 @@ log_dir = './log'
 tmp_image_dir = '../tmp_image_dir'
 
 image_process_thread_num = 3
-face_cluster_thread_num = 1
+face_cluster_thread_num = 2
 wonderful_gen_thread_num = 1
-
-thread_num = 3
 
 redis_image_queue_name = "mc_image_queue_list"
 redis_face_info_name = "mc_face_info_list-{}"

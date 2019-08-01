@@ -164,7 +164,7 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
                 while True:
                     data_ = r_object.rpop_content(face_user_key)
                     if not data_:
-                        time.sleep(2)
+                        time.sleep(2)  # 暂停2s, 没有新人脸便去聚类
                         data_ = r_object.rpop_content(face_user_key)
                         if not data_:
                             break
@@ -419,7 +419,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 self.log_info("{}证件识别耗时: {}".format(os.path.basename(image_path), time.time() - tmp_time))
 
                 tmp_time = time.time()
-                oi_5000_tag, is_black_and_white, things_class = oi_5000_model.get_tag(image_path)
+                oi_5000_tag, is_black_and_white, things_class = oi_5000_model.get_tag(image_path, threshold=0.55)
                 tags = oi_5000_tag
                 # + ml_1000_model.get_tag(image) + ml_11166_model.get_tag(image)
                 self.log_info("{}打标耗时: {}".format(os.path.basename(image_path), time.time() - tmp_time))
@@ -437,7 +437,6 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                         {"certificateInfo": certificate_info, "thingsClass": things_class}, ensure_ascii=False)),
                     "isBlackAndWhite": is_black_and_white,
                     "isLocalColor": is_local_color,
-                    # 'identity': str({"isIDCard": is_idcard}),
                     'existFace': min(face_count, 127),
                 }
 
