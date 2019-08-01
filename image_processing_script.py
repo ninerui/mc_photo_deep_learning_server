@@ -431,7 +431,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                     'tag': str(tags),
                     'filePath': image_url,
                     'exponent': aesthetic_value,
-                    'mediaInfo': str({"certificateInfo": certificate_info, "thingsClass": things_class}),
+                    'mediaInfo': str(json.dumps({"certificateInfo": certificate_info, "thingsClass": things_class})),
                     "isBlackAndWhite": is_black_and_white,
                     "isLocalColor": is_local_color,
                     # 'identity': str({"isIDCard": is_idcard}),
