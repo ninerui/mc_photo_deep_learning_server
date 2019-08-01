@@ -213,7 +213,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         threading.Thread.__init__(self)
         self.thread_name = thread_name
         self.log_content = "线程名: {}".format(thread_name) + ", {}"
-        time.sleep(0.01)
+        # time.sleep(0.01)
 
     def log_error(self, content):
         logging.error(self.log_content.format(content))
@@ -378,7 +378,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
     #         return res
 
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
-        # fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
+        fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
         fe_detection = face_emotion_interface.FaceEmotionKeras()  # 表情检测模型, 不能跨线程
         self.log_info("图片解析线程已启动...")
         while True:
@@ -578,7 +578,7 @@ if __name__ == '__main__':
 
     is_idcard_model = zhouwen_image_card_classify_interface.IDCardClassify()
 
-    fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
+    # fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
 
     image_enhancement_model = image_enhancement_interface.AIChallengeWithDPEDSRCNN()
     # od_model = object_detection_interface.ObjectDetectionWithSSDMobilenetV2()
