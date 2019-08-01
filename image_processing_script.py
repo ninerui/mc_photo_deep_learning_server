@@ -164,12 +164,14 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
                 while True:
                     data_ = r_object.rpop_content(face_user_key)
                     if not data_:
-                        break
+                        time.sleep(2)
+                        data_ = r_object.rpop_content(face_user_key)
+                        if not data_:
+                            break
                     data_ = json.loads(data_)
                     media_id = data_.get('face_id', "").split('_')[0]
                     face_data.append(data_)
                     success_image_set.add(media_id)
-                    time.sleep(1)
                 if len(face_data) != 0:
                     face_data = old_data + face_data
                     start_cluster_time = time.time()
