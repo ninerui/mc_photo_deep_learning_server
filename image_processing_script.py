@@ -260,8 +260,9 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             try:
                 new_img_path = os.path.join(conf.tmp_image_dir, "{}.jpg".format(image_id))
                 tmp_time = time.time()
-                os.system("convert {} {}".format(image_path, new_img_path))
+                image_tools.heic2jpg(image_path, new_img_path)
                 self.log_info("{}转jpg耗时: {}".format(image_name, time.time() - tmp_time))
+                # os.system("convert {} {}".format(image_path, new_img_path))
                 if os.path.isfile(new_img_path):
                     util.removefile(image_path)
                     return new_img_path
@@ -494,8 +495,10 @@ class GenerationWonderfulImageThread(threading.Thread):
             try:
                 new_img_path = os.path.join(conf.tmp_image_dir, "{}.jpg".format(image_id))
                 tmp_time = time.time()
-                os.system("convert {} {}".format(image_path, new_img_path))
+                image_tools.heic2jpg(image_path, new_img_path)
                 self.log_info("{}转jpg耗时: {}".format(image_name, time.time() - tmp_time))
+                # os.system("convert {} {}".format(image_path, new_img_path))
+                # self.log_info("{}转jpg耗时: {}".format(image_name, time.time() - tmp_time))
                 if os.path.isfile(new_img_path):
                     util.removefile(image_path)
                     return new_img_path
