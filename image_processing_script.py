@@ -21,6 +21,7 @@ from dl_module import image_quality_assessment_interface
 from dl_module import zhouwen_image_card_classify_interface
 from dl_module import image_making_interface, face_detection_interface, face_recognition_interface
 from dl_module import image_enhancement_interface
+from dl_module.fasterai.visualize import get_image_colorizer
 
 # from dl_module import object_detection_interface
 
@@ -139,6 +140,7 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
             if not face_user_key:
                 self.check_restart(9)
                 continue
+            # r_object.llen_content(face_user_key)
             user_id = face_user_key.split('-')[1]
             # self.pr_log(user_id)
             oss_running_file = "face_cluster_data/{}/.running".format(user_id)
@@ -422,6 +424,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 tmp_time = time.time()
                 oi_5000_tag, is_black_and_white, things_class = oi_5000_model.get_tag(image_path, threshold=0.55)
                 tags = oi_5000_tag
+
                 # + ml_1000_model.get_tag(image) + ml_11166_model.get_tag(image)
                 self.log_info("{}打标耗时: {}".format(os.path.basename(image_path), time.time() - tmp_time))
                 # is_local_color = self.get_is_local_color(image)
@@ -451,7 +454,18 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                             "callback_url": callback_url,
                             "data_json": data_json,
                         }))
-                util.removefile(image_path)
+
+                if is_black_and_white == 1:  # 是黑白图片
+                    r_object.lpush_content(conf.res_wonderful_gen_name, json.dumps({
+                        "type": 12,
+                        "userId": user_id,
+                        "mediaId": media_id,
+                        # "imageUrl": image_url,
+                        # "imageLocalPath": None,
+                        "image_path": image_path
+                    }))
+                else:
+                    util.removefile(image_path)
                 self.log_info("{} 处理成功, 耗时: {}".format(os.path.basename(image_url), time.time() - start_time))
             except Exception as e:
                 self.log_exception("{} 处理失败\n{}".format(image_url, e))
@@ -524,43 +538,43 @@ class GenerationWonderfulImageThread(threading.Thread):
             wonderful_type = params.get("type")
             user_id = params.get("userId")
             media_id = params.get("mediaId")
-            image_url = params.get('imageUrl')
-            image_local_path = params.get('imageLocalPath')
-            callback_url = params.get('callbackUrl')
-            if int(wonderful_type) == 11:  # 风格化照片
+            image_url = params.get('imageUrl', None)
+            image_local_path = params.get('imageLocalPath', None)
+            callback_url = params.get('callbackUrl', conf.wonderful_callback_url)
+            if image_url is not None:
                 image_path = self.download_image(image_url)
-                try:
+            else:
+                image_path = params.get("image_path")
+            assert os.path.isfile(image_path)
+            try:
+                output_path = os.path.join(conf.tmp_image_dir, "{}_{}.jpg".format(media_id, wonderful_type))
+                oss_image_path = "wonderful_image/{}/{}/{}_{}.jpg".format(
+                    wonderful_type, user_id, media_id, wonderful_type)
+                if int(wonderful_type) == 11:  # 风格化照片
                     image = imageio.imread(image_path)
                     scale = min(1920. / max(image.shape), 1.)
                     image = np.array(
                         Image.fromarray(image).resize((int(image.shape[1] * scale), int(image.shape[0] * scale))))
                     image = np.reshape(image, [1, image.shape[0], image.shape[1], 3]) / 255
                     output = image_enhancement_model.get_image(image)
-                    save_path = os.path.join(conf.tmp_image_dir, "{}_11.jpg".format(media_id))
-                    imageio.imwrite(save_path, output[0] * 255)
-                    oss_img_path = "wonderful_image/{}/{}_11.jpg".format(user_id, media_id)
-                    oss_bucket.put_object_from_file(oss_img_path, save_path)
+                    imageio.imwrite(output_path, output[0] * 255)
+                elif int(wonderful_type) == 12:  # 自动上色
+                    colorizer_model.get_result_path(image_path, output_path, render_factor=35)
 
-                    self.log_info({
-                        "ossKey": oss_img_path,
-                        "type": wonderful_type,
-                        "oldMediaId": media_id,
-                        "imageLocalPath": image_local_path,
-                        "userId": user_id
-                    })
+                oss_bucket.put_object_from_file(oss_image_path, output_path)
+                call_url_func(user_id, callback_url, data_json={
+                    "ossKey": oss_image_path,
+                    "type": wonderful_type,
+                    "oldMediaId": media_id,
+                    "imageLocalPath": image_local_path,
+                    "userId": user_id
+                })
 
-                    call_url_func(user_id, callback_url, data_json={
-                        "ossKey": oss_img_path,
-                        "type": wonderful_type,
-                        "oldMediaId": media_id,
-                        "imageLocalPath": image_local_path,
-                        "userId": user_id
-                    })
-                except Exception as e:
-                    self.log_exception(e)
-                    self.log_error("风格化图片失败!")
-                finally:
-                    self.check_restart(9)
+            except Exception as e:
+                self.log_exception(e)
+                self.log_error("风格化图片失败!")
+            finally:
+                self.check_restart(9)
 
 
 if __name__ == '__main__':
@@ -599,6 +613,7 @@ if __name__ == '__main__':
     is_idcard_model = zhouwen_image_card_classify_interface.IDCardClassify()
 
     # fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
+    colorizer_model = get_image_colorizer(artistic=True)
 
     image_enhancement_model = image_enhancement_interface.AIChallengeWithDPEDSRCNN()
     # od_model = object_detection_interface.ObjectDetectionWithSSDMobilenetV2()

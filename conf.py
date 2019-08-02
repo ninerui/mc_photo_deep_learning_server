@@ -22,7 +22,8 @@ res_face_cluster_name = "mc_face_cluster_list"
 res_image_making_name = "mc_image_making_list"
 res_wonderful_gen_name = "mc_wonderful_gen_list"
 
-handle_result_url = "http://47.112.110.202:8081/ai/updateFaceId"
+handle_result_url = "http://172.18.194.176:8081/ai/updateFaceId"
+wonderful_callback_url = 'http://172.18.194.176:8081/ai/receiveWonderfulData'
 
 
 class AccountConf:
