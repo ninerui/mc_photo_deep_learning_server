@@ -562,6 +562,8 @@ class GenerationWonderfulImageThread(threading.Thread):
                     colorizer_model.get_result_path(image_path, output_path, render_factor=35)
 
                 oss_bucket.put_object_from_file(oss_image_path, output_path)
+                util.removefile(image_path)
+                util.removefile(output_path)
                 call_url_func(user_id, callback_url, data_json={
                     "ossKey": oss_image_path,
                     "type": wonderful_type,
