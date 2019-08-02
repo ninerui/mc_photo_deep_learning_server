@@ -535,18 +535,19 @@ class GenerationWonderfulImageThread(threading.Thread):
                     output = image_enhancement_model.get_image(image)
                     save_path = os.path.join(conf.tmp_image_dir, "{}_11.jpg".format(media_id))
                     imageio.imwrite(save_path, output[0] * 255)
-                    oss_bucket.put_object_from_file("wonderful_image/{}_11.jpg".format(media_id), save_path)
+                    oss_img_path = "wonderful_image/{}/{}_11.jpg".format(user_id, media_id)
+                    oss_bucket.put_object_from_file(oss_img_path, save_path)
 
                     self.log_info({
-                        "ossKey": "wonderful_image/{}_11.jpg".format(media_id),
+                        "ossKey": oss_img_path,
                         "type": wonderful_type,
                         "oldMediaId": media_id,
                         "imageLocalPath": image_local_path,
                         "userId": user_id
                     })
 
-                    call_url_func(user_id, callback_url, {
-                        "ossKey": "wonderful_image/{}_11.jpg".format(media_id),
+                    call_url_func(user_id, callback_url, data_json={
+                        "ossKey": oss_img_path,
                         "type": wonderful_type,
                         "oldMediaId": media_id,
                         "imageLocalPath": image_local_path,
