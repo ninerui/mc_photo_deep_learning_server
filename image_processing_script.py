@@ -22,6 +22,7 @@ from dl_module import zhouwen_image_card_classify_interface
 from dl_module import image_making_interface, face_detection_interface, face_recognition_interface
 from dl_module import image_enhancement_interface
 from dl_module.fasterai.visualize import get_image_colorizer
+from dl_module.human_pose_estimation_interface import TfPoseEstimator
 
 # from dl_module import object_detection_interface
 
@@ -360,27 +361,30 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             raise SystemExit
         time.sleep(9 / max(1, params_count))
 
-    # def get_is_local_color(self, image):
-    #     res = 0
-    #     try:
-    #         tmp_time = time.time()
-    #         image_np = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    #         image_np_expanded = np.expand_dims(image_np, axis=0)
-    #         od_boxes_, od_scores_, od_classes_ = od_model.detect_object(image_np_expanded)
-    #         for idx in range(od_boxes_[0].shape[0]):
-    #             if od_scores_[0][idx] < 0.2:
-    #                 break
-    #             tmp_classes = od_classes_[0][idx]
-    #             if int(tmp_classes) in [308, 228, 69]:
-    #                 ymin, xmin, ymax, xmax = od_boxes_[0][idx]
-    #                 if xmin <= 0.3 and xmax >= 0.7:
-    #                     res = 1
-    #                     break
-    #         self.log_info("目标检测耗时: {}".format(time.time() - tmp_time))
-    #     except Exception as e:
-    #         self.log_exception(e)
-    #     finally:
-    #         return res
+    def get_is_local_color(self, image):
+        res = 0
+        try:
+            tmp_time = time.time()
+            scale = 600. / max(image.shape)
+            image = cv2.resize(image, (int(image.shape[1] * scale), int(image.shape[0] * scale)))
+            humans = pose_estimator_model.inference(image, resize_to_default=False, upsample_size=4.0)
+            for human in humans:
+                tmp = False
+                for k, v in human.body_parts.items():
+                    if k in [0, 1]:
+                        x_, y_ = v.x, v.y
+                        if abs(x_ - 0.5) < 0.1:
+                            tmp = True
+                if tmp:
+                    res += 1
+                if res > 1:
+                    res = 0
+                    break
+            self.log_info("目标检测耗时: {}".format(time.time() - tmp_time))
+        except Exception as e:
+            self.log_exception(e)
+        finally:
+            return res
 
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
         fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
@@ -427,8 +431,8 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
 
                 # + ml_1000_model.get_tag(image) + ml_11166_model.get_tag(image)
                 self.log_info("{}打标耗时: {}".format(os.path.basename(image_path), time.time() - tmp_time))
-                # is_local_color = self.get_is_local_color(image)
-                is_local_color = 0
+                is_local_color = self.get_is_local_color(image)
+                # is_local_color = 0
                 face_count = self.parser_face(user_id, media_id, image, fe_detection, fr_arcface)
 
                 data_json = {
@@ -619,6 +623,7 @@ if __name__ == '__main__':
 
     image_enhancement_model = image_enhancement_interface.AIChallengeWithDPEDSRCNN()
     # od_model = object_detection_interface.ObjectDetectionWithSSDMobilenetV2()
+    pose_estimator_model = TfPoseEstimator('./models/pose_estimator_models.pb', target_size=(432, 368))
 
     # logging.info("即将开启的线程数: {}".format(conf.thread_num))
     # 创建线程并开始图片打标线程
@@ -629,7 +634,7 @@ if __name__ == '__main__':
     for i in range(conf.face_cluster_thread_num):
         FaceClusterThread("face_cluster_{}".format(i)).start()
 
-    # 创建并开始图片调用线程
+    # 创建并开始精彩生成线程
     for i in range(conf.wonderful_gen_thread_num):
         GenerationWonderfulImageThread("wonderful_generation_{}".format(i)).start()
 
