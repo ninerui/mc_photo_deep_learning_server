@@ -4,11 +4,13 @@ import json
 import pickle
 import logging
 import threading
+import collections
 from urllib.request import urlretrieve
 
 import cv2
 import imageio
 from PIL import Image
+from PIL import ImageFilter, ImageColor
 import numpy as np
 import requests
 from tensorflow import keras
@@ -23,6 +25,7 @@ from dl_module import image_making_interface, face_detection_interface, face_rec
 from dl_module import image_enhancement_interface
 from dl_module.fasterai.visualize import get_image_colorizer
 from dl_module.human_pose_estimation_interface import TfPoseEstimator
+from dl_module.object_mask_detection_interface import ObjectMaskDetection
 
 # from dl_module import object_detection_interface
 
@@ -477,6 +480,12 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 self.check_restart(9)
 
 
+def load_image_into_numpy_array(image):
+    (im_width, im_height) = image.size
+    return np.array(image.getdata()).reshape(
+        (im_height, im_width, 3)).astype(np.uint8)
+
+
 class GenerationWonderfulImageThread(threading.Thread):
     def __init__(self, thread_name):
         threading.Thread.__init__(self)
@@ -564,6 +573,65 @@ class GenerationWonderfulImageThread(threading.Thread):
                     imageio.imwrite(output_path, output[0] * 255)
                 elif int(wonderful_type) == 12:  # 自动上色
                     colorizer_model.get_result_path(image_path, output_path, render_factor=35)
+                elif int(wonderful_type) == 9:
+                    image = Image.open(image_path)
+                    image_np = load_image_into_numpy_array(image)
+                    image_np_expanded = np.expand_dims(image_np, axis=0)
+                    output_dict = object_mask_detection_model.detect_object(image_np_expanded)
+
+                    box_to_display_str_map = collections.defaultdict(list)
+                    box_to_color_map = collections.defaultdict(str)
+                    box_to_instance_masks_map = {}
+                    box_to_instance_boundaries_map = {}
+                    box_to_keypoints_map = collections.defaultdict(list)
+                    box_to_track_ids_map = {}
+                    max_boxes_to_draw = 20
+                    boxes = output_dict['detection_boxes']
+                    classes = output_dict['detection_classes']
+                    scores = output_dict['detection_scores']
+                    min_score_thresh = .5
+                    instance_masks = output_dict.get('detection_masks')
+                    instance_boundaries = None
+                    keypoints = None
+                    track_ids = None
+                    agnostic_mode = False
+                    groundtruth_box_visualization_color = 'black'
+                    for i in range(min(max_boxes_to_draw, boxes.shape[0])):
+                        if scores is None or scores[i] > min_score_thresh:
+                            box = tuple(boxes[i].tolist())
+                            if instance_masks is not None:
+                                box_to_instance_masks_map[box] = instance_masks[i]
+                            if instance_boundaries is not None:
+                                box_to_instance_boundaries_map[box] = instance_boundaries[i]
+                            if keypoints is not None:
+                                box_to_keypoints_map[box].extend(keypoints[i])
+                            if track_ids is not None:
+                                box_to_track_ids_map[box] = track_ids[i]
+                            if scores is None:
+                                box_to_color_map[box] = groundtruth_box_visualization_color
+                            else:
+                                display_str = ''
+                                box_to_display_str_map[box].append(display_str)
+                                if agnostic_mode:
+                                    box_to_color_map[box] = 'DarkOrange'
+                    for box, color in box_to_color_map.items():
+                        ymin, xmin, ymax, xmax = box
+                        if instance_masks is not None:
+                            rgb = ImageColor.getrgb(color)
+                            pil_image = Image.fromarray(image_np)
+                            pil_image_blur = pil_image.filter(ImageFilter.BLUR)
+                            pil_image_gray = Image.fromarray(pil_image_blur).convert('L')
+                            mask = box_to_instance_masks_map[box]
+                            solid_color = np.expand_dims(np.ones_like(mask), axis=2) * np.reshape(list(rgb), [1, 1, 3])
+                            pil_solid_color = Image.fromarray(np.uint8(solid_color)).convert('RGBA')
+                            pil_mask = Image.fromarray(np.uint8(255.0 * 1. * mask)).convert('L')
+                            pil_mask_1 = Image.fromarray(np.uint8(255.0 * 1. * mask)).convert('L')
+                            tmp_img = Image.composite(pil_image, pil_solid_color, pil_mask_1)
+                            pil_solid_color_1 = Image.fromarray(np.uint8(tmp_img)).convert('RGBA')
+                            pil_image = Image.composite(pil_solid_color_1, pil_image_gray.convert("RGB"), pil_mask)
+                            np.copyto(image_np, np.array(pil_image.convert('RGB')))
+                            break
+                    cv2.imwrite(output_path, cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR))
 
                 oss_bucket.put_object_from_file(oss_image_path, output_path)
                 util.removefile(image_path)
@@ -624,6 +692,8 @@ if __name__ == '__main__':
     image_enhancement_model = image_enhancement_interface.AIChallengeWithDPEDSRCNN()
     # od_model = object_detection_interface.ObjectDetectionWithSSDMobilenetV2()
     pose_estimator_model = TfPoseEstimator('./models/pose_estimator_models.pb', target_size=(432, 368))
+
+    object_mask_detection_model = ObjectMaskDetection()
 
     # logging.info("即将开启的线程数: {}".format(conf.thread_num))
     # 创建线程并开始图片打标线程
