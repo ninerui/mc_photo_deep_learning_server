@@ -2,6 +2,8 @@
 env_manage = {
     # '172.16.181.140': 1,  # 118.31.225.209
     '172.18.194.177': 0,  # 47.112.115.127
+    '172.16.172.127': 0,
+
     # '172.16.172.124': 1,  # 47.99.176.149
     '172.16.178.202': 1,  # 47.111.147.203
     '172.16.178.203': 1,  # 47.111.147.95
@@ -22,8 +24,8 @@ res_face_cluster_name = "mc_face_cluster_list"
 res_image_making_name = "mc_image_making_list"
 res_wonderful_gen_name = "mc_wonderful_gen_list"
 
-handle_result_url = "http://172.18.194.176:8081/ai/updateFaceId"
-wonderful_callback_url = 'http://172.18.194.176:8081/ai/receiveWonderfulData'
+handle_result_url = "http://172.16.181.135:8081/ai/updateFaceId"
+wonderful_callback_url = 'http://172.16.181.135:8081/ai/receiveWonderfulData'
 
 
 class AccountConf:
@@ -43,12 +45,18 @@ class AccountConf:
             self.res_password = "McPhotos$2019"
         else:
             # oss对象
-            self.accessKeyId = 'LTAIu0Zf15FLBq4R'
-            self.accessKeySecret = 'n9zAUBrXhf2nFilRowvPqkNOrw8u75'
-            # endpoint = 'http://oss-cn-shenzhen-internal.aliyuncs.com'
-            self.endpoint = 'http://oss-cn-shenzhen.aliyuncs.com'
-            self.bucket = 'mc-photo-ai-face'
-            self.host = 'oss-cn-shenzhen-internal.aliyuncs.com'
+            self.accessKeyId = 'LTAIRje9cQipM55x'
+            self.accessKeySecret = 'U0oKHXSxsBavNnkzrGcWkpaDlHs9yH'
+            self.endpoint = 'http://oss-cn-hangzhou-internal.aliyuncs.com'
+            # self.endpoint = 'http://oss-cn-shenzhen.aliyuncs.com'
+            self.bucket = 'mc-photo-face-ai'
+            self.host = 'oss-cn-hangzhou-internal.aliyuncs.com'
+            # self.accessKeyId = 'LTAIu0Zf15FLBq4R'
+            # self.accessKeySecret = 'n9zAUBrXhf2nFilRowvPqkNOrw8u75'
+            # # endpoint = 'http://oss-cn-shenzhen-internal.aliyuncs.com'
+            # self.endpoint = 'http://oss-cn-shenzhen.aliyuncs.com'
+            # self.bucket = 'mc-photo-ai-face'
+            # self.host = 'oss-cn-shenzhen-internal.aliyuncs.com'
             # redis addr
             self.res_host = 'localhost'
             self.res_port = 6379
