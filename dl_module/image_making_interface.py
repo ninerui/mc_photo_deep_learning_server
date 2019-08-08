@@ -73,22 +73,25 @@ class ImageMakingWithOpenImage:
         self.labels, self.object = _load_dictionary_1("./data/open_image_label_5000.txt")
 
     def get_tag(self, img_path, threshold=0.5):
-        compressed_image = tf.gfile.FastGFile(img_path, 'rb').read()
-        predictions_eval = self.oi_5000_sess.run(self.oi_5000_prob, feed_dict={self.oi_5000_input: [compressed_image]})
-        top_k = predictions_eval.argsort()[::-1]
-        tag = []
-        objects = set()
-        is_black_and_white = 0
-        for i in top_k:
-            if i == 550:  # 是黑白图
-                is_black_and_white = 1
-            confidence = predictions_eval[i]
-            if confidence < threshold:
-                break
-            tag.append({"value": self.labels.get(str(i), ""), "confidence": (int(confidence * 100) + 5000)})
-            if self.object.get(str(i), ""):
-                objects.add(self.object.get(str(i), ""))
-        return tag, is_black_and_white, list(objects)
+        try:
+            compressed_image = tf.gfile.FastGFile(img_path, 'rb').read()
+            predictions_eval = self.oi_5000_sess.run(self.oi_5000_prob, feed_dict={self.oi_5000_input: [compressed_image]})
+            top_k = predictions_eval.argsort()[::-1]
+            tag = []
+            objects = set()
+            is_black_and_white = 0
+            for i in top_k:
+                if i == 550:  # 是黑白图
+                    is_black_and_white = 1
+                confidence = predictions_eval[i]
+                if confidence < threshold:
+                    break
+                tag.append({"value": self.labels.get(str(i), ""), "confidence": (int(confidence * 100) + 5000)})
+                if self.object.get(str(i), ""):
+                    objects.add(self.object.get(str(i), ""))
+            return tag, is_black_and_white, list(objects)
+        except:
+            return [], 0, []
 
 
 class ImageMakingWithTencent:
