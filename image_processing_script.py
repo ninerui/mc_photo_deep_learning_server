@@ -9,11 +9,10 @@ from urllib.request import urlretrieve
 
 import cv2
 import imageio
-from PIL import Image
-from PIL import ImageFilter, ImageColor
-import numpy as np
 import requests
+import numpy as np
 from tensorflow import keras
+from PIL import Image, ImageFilter, ImageColor, ImageFile
 
 import conf
 from utils import connects, util, image_tools
@@ -39,6 +38,8 @@ try:
 except Exception as e1:
     print(e1)
     pass
+
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 class BaseThread(threading.Thread):
