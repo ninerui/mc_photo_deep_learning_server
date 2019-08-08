@@ -1,7 +1,9 @@
 import subprocess
 
 import cv2
+import pyheif
 import numpy as np
+from PIL import Image
 from skimage import transform as trans
 
 
@@ -54,5 +56,20 @@ def preprocess(img, image_size, bbox=None, landmark=None, **kwargs):
 
 
 def heic2jpg(src_file, result_file):
-    params = ['convert', src_file, result_file]
-    subprocess.check_call(params)
+    # # 脚本命令行转
+    # params = ['convert', src_file, result_file]
+    # subprocess.check_call(params)
+
+    # python读取后转
+    heif_file = pyheif.read_heif(src_file)
+    pi = Image.frombytes(mode=heif_file.mode, size=heif_file.size, data=heif_file.data)
+    pi.save(result_file, format='jpeg')
+# def read_img_file(img_path):
+#     def read_img(img_path):
+#         image_id, image_type = os.path.splitext(img_path)
+#         if image_type.lower() == '.heic':
+#             heif_file = pyheif.read_heif(img_path)
+#             pi = Image.frombytes(mode=heif_file.mode, size=heif_file.size, data=heif_file.data)
+#         else:
+#             pi = Image.open(img_path)
+#         return pi
