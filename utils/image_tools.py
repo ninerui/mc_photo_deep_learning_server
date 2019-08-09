@@ -62,8 +62,11 @@ def heic2jpg(src_file, result_file):
 
     # python¶ÁÈ¡ºó×ª
     heif_file = pyheif.read_heif(src_file)
-    pi = Image.frombytes(mode=heif_file.mode, size=heif_file.size, data=heif_file.data)
-    pi.save(result_file, format='jpeg')
+    # pi = Image.frombytes(mode=heif_file.mode, size=heif_file.size, data=heif_file.data)
+    # pi.save(result_file, format='jpeg')
+    img = np.fromstring(heif_file.data, dtype=np.uint8).reshape((heif_file.size[1], heif_file.size[0], 3))
+    cv2.imwrite(result_file, cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
+
 # def read_img_file(img_path):
 #     def read_img(img_path):
 #         image_id, image_type = os.path.splitext(img_path)
