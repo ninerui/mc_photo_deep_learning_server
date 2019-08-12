@@ -59,14 +59,14 @@ class AccountConf:
             # self.bucket = 'mc-photo-ai-face'
             # self.host = 'oss-cn-shenzhen-internal.aliyuncs.com'
             # redis addr
-            self.res_host = 'r-bp1s3ywv637g7qrzfy.redis.rds.aliyuncs.com'
-            self.res_port = 6379
-            self.res_decode_responses = True
-            self.res_password = "ADe867xb1r"
-            # self.res_host = 'localhost'
+            # self.res_host = 'r-bp1s3ywv637g7qrzfy.redis.rds.aliyuncs.com'
             # self.res_port = 6379
             # self.res_decode_responses = True
-            # self.res_password = ""
+            # self.res_password = "ADe867xb1r"
+            self.res_host = 'localhost'
+            self.res_port = 6379
+            self.res_decode_responses = True
+            self.res_password = ""
 
 
 # 返回代码参数
