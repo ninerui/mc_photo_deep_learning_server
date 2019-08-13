@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 import cv2
 import numpy as np
 import tensorflow as tf
@@ -27,7 +28,7 @@ class IDCardClassify:
                 label = pred_.index(max(pred_))
                 confidence = max(pred_)
                 if label == 0 and confidence > 0.99999:
-                    res_list.append(['Éí·İÖ¤'])
+                    res_list.append(['èº«ä»½è¯'])
                 else:
                     res_list.append([])
         return res_list
