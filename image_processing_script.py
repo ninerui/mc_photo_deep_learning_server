@@ -335,10 +335,11 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                     "face_id": "{}_{}".format(media_id, idx),
                     "face_box": [left, top, right - left, bottom - top],
                     "user_id": user_id,
-                    "face_data": warped,
+                    "face_data": warped.tolist(),
                     # "face_feature": np.array(emb).tolist(),
                     # "emotionStr": emotion_label_arg,
                 }))
+                # self.log_info("{}_{}".format(media_id, idx))
                 face_count += 1
                 # emotion_label_arg = fe_detection.detection_emotion(warped)
                 #
@@ -413,7 +414,6 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         for idx in range(len(params_data)):
             tmp_data = params_data[idx]
             face_count = self.parser_face(tmp_data.get('user_id'), tmp_data.get('media_id'), image_list[idx])
-
             data_json = {
                 'mediaId': tmp_data.get('media_id'),
                 'fileId': tmp_data.get('file_id'),
