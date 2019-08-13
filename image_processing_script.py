@@ -26,6 +26,7 @@ from dl_module import image_enhancement_interface
 from dl_module.fasterai.visualize import get_image_colorizer
 from dl_module.human_pose_estimation_interface import TfPoseEstimator
 from dl_module.object_mask_detection_interface import ObjectMaskDetection
+from dl_module.zhouwen_detect_blur import detection_blur
 
 # from dl_module import object_detection_interface
 
@@ -419,10 +420,10 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 'fileId': tmp_data.get('file_id'),
                 'tag': str(tags_list[idx].get("tags")),
                 'filePath': tmp_data.get('image_url'),
-                'exponent': 100,
-                'mediaInfo': str(json.dumps(
-                    {"certificateInfo": is_card_list[idx],
-                     "thingsClass": tags_list[idx].get("classes")}, ensure_ascii=False)),
+                'exponent': detection_blur(image_list[idx]),
+                'mediaInfo': str(json.dumps({
+                    "certificateInfo": is_card_list[idx],
+                    "thingsClass": tags_list[idx].get("classes")}, ensure_ascii=False)),
                 "isBlackAndWhite": tags_list[idx].get("is_black_and_white"),
                 "isLocalColor": 0,
                 'existFace': min(face_count, 127),

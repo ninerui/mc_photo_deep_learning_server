@@ -23,7 +23,7 @@ image_quality_assessment_switch = False
 id_classify_switch = True
 
 redis_image_queue_name = "mc_image_queue_list"
-redis_face_info_name = "mc_face_info_data_1"
+redis_face_info_name = "mc_face_info_data"
 redis_face_info_key_set = "mc_face_info_key_set"
 redis_face_info_key_list = "mc_face_info_key_list"
 
