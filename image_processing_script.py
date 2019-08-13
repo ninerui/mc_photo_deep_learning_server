@@ -386,7 +386,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
 
     def main_func(self):
         tmp_time = time.time()
-        params_data = get_rds_next_data(conf.res_image_making_name, 3)
+        params_data = get_rds_next_data(conf.res_image_making_name, 10)
         if len(params_data) == 0:
             self.check_restart(1)
             return
@@ -417,8 +417,8 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         self.log_info("{}处理耗时: {}".format(len(params_data), time.time() - tmp_time))
 
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
-        fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
-        fe_detection = face_emotion_interface.FaceEmotionKeras()  # 表情检测模型, 不能跨线程
+        # fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
+        # fe_detection = face_emotion_interface.FaceEmotionKeras()  # 表情检测模型, 不能跨线程
         self.log_info("图片解析线程已启动...")
         while True:
             try:
