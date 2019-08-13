@@ -12,9 +12,9 @@ env_manage = {
 log_dir = './log'
 tmp_image_dir = '../tmp_image_dir'
 
-image_process_thread_num = 6
+image_process_thread_num = 3
 face_cluster_thread_num = 0
-wonderful_gen_thread_num = 0
+wonderful_gen_thread_num = 1
 
 # 模块开关控制
 image_making_switch = True

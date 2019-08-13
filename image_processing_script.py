@@ -143,7 +143,7 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
         self.log_info("人脸聚类线程已启动...")
         while True:
-            face_user_key = r_object.rpop_content(conf.redis_face_info_key_list)
+            face_user_key = r_object.rpop_content(conf.redis_face_info_name)
             if not face_user_key:
                 self.check_restart(9)
                 continue
@@ -374,7 +374,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             tmp_time = time.time()
             scale = 600. / max(image.shape)
             image = cv2.resize(image, (int(image.shape[1] * scale), int(image.shape[0] * scale)))
-            humans = pose_estimator_model.inference(image, resize_to_default=False, upsample_size=4.0)
+            humans = pose_estimator_model.inference(image, resize_to_default=False, upsample_size=1.0)
             for human in humans:
                 tmp = False
                 for k, v in human.body_parts.items():
@@ -425,10 +425,21 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                     "certificateInfo": is_card_list[idx],
                     "thingsClass": tags_list[idx].get("classes")}, ensure_ascii=False)),
                 "isBlackAndWhite": tags_list[idx].get("is_black_and_white"),
-                "isLocalColor": 0,
+                "isLocalColor": self.get_is_local_color(image_list[idx]),
                 'existFace': min(face_count, 127),
             }
             call_results_status = self.call_url_func(params_data[idx].get('callback_url'), data_json=data_json)
+
+            if tags_list[idx].get("is_black_and_white") == 1:  # 是黑白图片
+                r_object.lpush_content(conf.res_wonderful_gen_name, json.dumps({
+                    "type": 12,
+                    "userId": tmp_data.get('user_id'),
+                    "mediaId": tmp_data.get('media_id'),
+                    "image_path": tmp_data.get('image_path')
+                }))
+            else:
+                util.removefile(tmp_data.get('image_path'))
+
         self.log_info("{}处理耗时: {}".format(len(params_data), time.time() - tmp_time))
 
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
@@ -442,95 +453,6 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 self.log_exception("处理失败\n{}".format(e))
             finally:
                 self.check_restart(9)
-
-            # params_list = []
-            # params = r_object.rpop_content(conf.res_image_making_name)
-            # params_count = r_object.llen_content(conf.res_image_making_name)
-            # if not params:
-            #     self.check_restart(1)
-            #     continue
-            # self.log_info("开始处理图片, 剩余数据: {} 条".format(params_count - 1))
-            # params = json.loads(params)
-            # user_id = params.get("user_id")
-            # media_id = params.get("media_id")
-            # image_url = params.get('image_url')
-            # file_id = params.get('file_id')
-            # callback_url = params.get('callback_url')
-            # try:
-            #     image_path = image_tools.download_image(image_url, conf.tmp_image_dir)
-            #     # image_path = self.download_image(image_url)
-            #     if not image_path:
-            #         self.log_error("图片下载失败: {}".format(image_url))
-            #         continue
-            #     # start_time = time.time()
-            #     # assessment_img = np.asarray(
-            #     #     keras.preprocessing.image.load_img(image_path, target_size=(224, 224)))
-            #     aesthetic_value = 0
-            #     # aesthetic_value = aesthetic_model.get_res(assessment_img)
-            #     # technical_value = technical_model.get_res(assessment_img)
-            #     # aesthetic_value = 100. - (aesthetic_value * 0.8 + technical_value * 0.2)
-            #
-            #     image = cv2.imread(image_path)
-            #
-            #     gray_image = cv2.cvtColor(cv2.resize(image, (64, 64)), cv2.COLOR_BGR2GRAY)
-            #     tmp_time = time.time()
-            #     is_id_card = is_idcard_model.get_res(gray_image)
-            #     certificate_info = []
-            #     if is_id_card == 1:
-            #         certificate_info.append('身份证')
-            #     # is_idcard = 0
-            #     self.log_info("{}证件识别耗时: {}".format(os.path.basename(image_path), time.time() - tmp_time))
-            #
-            #     tmp_time = time.time()
-            #     oi_5000_tag, is_black_and_white, things_class = oi_5000_model.get_tag(image_path, threshold=0.55)
-            #     tags = oi_5000_tag
-            #
-            #     # + ml_1000_model.get_tag(image) + ml_11166_model.get_tag(image)
-            #     self.log_info("{}打标耗时: {}".format(os.path.basename(image_path), time.time() - tmp_time))
-            #     is_local_color = self.get_is_local_color(image)
-            #     # is_local_color = 0
-            #     face_count = self.parser_face(user_id, media_id, image, fe_detection, fr_arcface)
-            #
-            #     data_json = {
-            #         'mediaId': media_id,
-            #         'fileId': file_id,
-            #         'tag': str(tags),
-            #         'filePath': image_url,
-            #         'exponent': aesthetic_value,
-            #         'mediaInfo': str(json.dumps(
-            #             {"certificateInfo": certificate_info, "thingsClass": things_class}, ensure_ascii=False)),
-            #         "isBlackAndWhite": is_black_and_white,
-            #         "isLocalColor": is_local_color,
-            #         'existFace': min(face_count, 127),
-            #     }
-            #
-            #     call_results_status = self.call_url_func(callback_url, data_json=data_json)
-            #     if not call_results_status:
-            #         # 回调失败, 保存结果
-            #         self.log_error("结果列表回调失败, 保存结果至oss!")
-            #         oss_bucket.put_object(
-            #             "face_cluster_call_error_data/{}.pkl".format(media_id),
-            #             pickle.dumps({
-            #                 "callback_url": callback_url,
-            #                 "data_json": data_json,
-            #             }))
-            #
-            #     if is_black_and_white == 1:  # 是黑白图片
-            #         r_object.lpush_content(conf.res_wonderful_gen_name, json.dumps({
-            #             "type": 12,
-            #             "userId": user_id,
-            #             "mediaId": media_id,
-            #             # "imageUrl": image_url,
-            #             # "imageLocalPath": None,
-            #             "image_path": image_path
-            #         }))
-            #     # else:
-            #     #     util.removefile(image_path)
-            #     self.log_info("{} 处理成功, 耗时: {}".format(os.path.basename(image_url), time.time() - start_time))
-            # except Exception as e:
-            #     self.log_exception("{} 处理失败\n{}".format(image_url, e))
-            # finally:
-            #     self.check_restart(9)
 
 
 def load_image_into_numpy_array(image):
@@ -577,8 +499,6 @@ class GenerationWonderfulImageThread(threading.Thread):
                 tmp_time = time.time()
                 image_tools.heic2jpg(image_path, new_img_path)
                 self.log_info("{}转jpg耗时: {}".format(image_name, time.time() - tmp_time))
-                # os.system("convert {} {}".format(image_path, new_img_path))
-                # self.log_info("{}转jpg耗时: {}".format(image_name, time.time() - tmp_time))
                 if os.path.isfile(new_img_path):
                     util.removefile(image_path)
                     return new_img_path
@@ -732,20 +652,16 @@ if __name__ == '__main__':
     if conf.face_cluster_switch:
         fd_ssd_detection = face_detection_interface.FaceDetectionWithSSDMobilenet()
         fd_mtcnn_detection = face_detection_interface.FaceDetectionWithMtcnnTF(steps_threshold=[0.6, 0.7, 0.8])
-    # if conf.image_quality_assessment_switch:
-    #     aesthetic_model = image_quality_assessment_interface.AestheticQualityModelWithTF()
-    #     technical_model = image_quality_assessment_interface.TechnicalQualityModelWithTF()
     if conf.id_classify_switch:
         is_idcard_model = zhouwen_image_card_classify_interface.IDCardClassify()
 
     # fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
-    colorizer_model = get_image_colorizer(artistic=True)
 
+    colorizer_model = get_image_colorizer(artistic=True)
+    object_mask_detection_model = ObjectMaskDetection()
     image_enhancement_model = image_enhancement_interface.AIChallengeWithDPEDSRCNN()
     # od_model = object_detection_interface.ObjectDetectionWithSSDMobilenetV2()
     pose_estimator_model = TfPoseEstimator('./models/pose_estimator_models.pb', target_size=(432, 368))
-
-    object_mask_detection_model = ObjectMaskDetection()
 
     # logging.info("即将开启的线程数: {}".format(conf.thread_num))
     # 创建线程并开始图片打标线程
