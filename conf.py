@@ -13,8 +13,8 @@ log_dir = './log'
 tmp_image_dir = '../tmp_image_dir'
 
 image_process_thread_num = 5
-face_cluster_thread_num = 2
-wonderful_gen_thread_num = 1
+face_cluster_thread_num = 0
+wonderful_gen_thread_num = 0
 
 # 模块开关控制
 image_making_switch = True
