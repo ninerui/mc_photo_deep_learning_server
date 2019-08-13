@@ -301,7 +301,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 continue
         return call_suc_status
 
-    def parser_face(self, user_id, media_id, image, a, b):
+    def parser_face(self, user_id, media_id, image):
         face_count = 0
         try:
             tmp_time = time.time()
