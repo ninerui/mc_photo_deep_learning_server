@@ -331,21 +331,28 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 oss_bucket.put_object_from_file(oss_face_image_name, face_image_path)
                 util.removefile(face_image_path)
 
-                emotion_label_arg = fe_detection.detection_emotion(warped)
-
-                warped = np.transpose(warped, (2, 0, 1))
-                emb = fr_model.get_feature(warped)
-
-                redis_user_key = conf.redis_face_info_name.format(user_id)
-                r_object.lpush_content(redis_user_key, json.dumps({
+                r_object.lpush_content(conf.redis_face_info_name, json.dumps({
                     "face_id": "{}_{}".format(media_id, idx),
                     "face_box": [left, top, right - left, bottom - top],
-                    "face_feature": np.array(emb).tolist(),
-                    "emotionStr": emotion_label_arg,
+                    "user_id": user_id,
+                    "face_data": warped,
+                    # "face_feature": np.array(emb).tolist(),
+                    # "emotionStr": emotion_label_arg,
                 }))
-                r_object.lpush_content(conf.redis_face_info_key_list, redis_user_key)
-
                 face_count += 1
+                # emotion_label_arg = fe_detection.detection_emotion(warped)
+                #
+                # warped = np.transpose(warped, (2, 0, 1))
+                # emb = fr_model.get_feature(warped)
+                #
+                # redis_user_key = conf.redis_face_info_name.format(user_id)
+                # r_object.lpush_content(redis_user_key, json.dumps({
+                #     "face_id": "{}_{}".format(media_id, idx),
+                #     "face_box": [left, top, right - left, bottom - top],
+                #     "face_feature": np.array(emb).tolist(),
+                #     "emotionStr": emotion_label_arg,
+                # }))
+                # r_object.lpush_content(conf.redis_face_info_key_list, redis_user_key)
             self.log_info("{}人脸耗时: {}".format(media_id, time.time() - tmp_time))
         except Exception as e:
             self.log_exception("{}转换失败\n{}".format(media_id, e))
@@ -385,33 +392,40 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             return res
 
     def main_func(self):
-        tmp_time = time.time()
-        params_data = get_rds_next_data(conf.res_image_making_name, 10)
+        start_time = time.time()
+        params_data = get_rds_next_data(conf.res_image_making_name, 3)
         if len(params_data) == 0:
             self.check_restart(1)
             return
+        self.log_info("{} 张图片下载及转换耗时: {}".format(len(params_data), time.time() - start_time))
         image_path_list = [param.get('image_path') for param in params_data]
         # 开始图片打标
+        tmp_time = time.time()
         tags_list = oi_5000_model.get_tag(image_path_list)
+        self.log_info("{} 张图片打标耗时: {}".format(len(params_data), time.time() - tmp_time))
         # 读取图片
         image_list = [cv2.imread(img_path) for img_path in image_path_list]
         # 图片证件识别
+        tmp_time = time.time()
         is_card_list = is_idcard_model.get_res(image_list)
-        # 图片清晰度检测
+        self.log_info("{} 张图片证件识别耗时: {}".format(len(params_data), time.time() - tmp_time))
 
         for idx in range(len(params_data)):
+            tmp_data = params_data[idx]
+            face_count = self.parser_face(tmp_data.get('user_id'), tmp_data.get('media_id'), image_list[idx])
+
             data_json = {
-                'mediaId': params_data[idx].get('media_id'),
-                'fileId': params_data[idx].get('file_id'),
+                'mediaId': tmp_data.get('media_id'),
+                'fileId': tmp_data.get('file_id'),
                 'tag': str(tags_list[idx].get("tags")),
-                'filePath': params_data[idx].get('image_url'),
+                'filePath': tmp_data.get('image_url'),
                 'exponent': 100,
                 'mediaInfo': str(json.dumps(
                     {"certificateInfo": is_card_list[idx],
                      "thingsClass": tags_list[idx].get("classes")}, ensure_ascii=False)),
                 "isBlackAndWhite": tags_list[idx].get("is_black_and_white"),
                 "isLocalColor": 0,
-                'existFace': 0,
+                'existFace': min(face_count, 127),
             }
             call_results_status = self.call_url_func(params_data[idx].get('callback_url'), data_json=data_json)
         self.log_info("{}处理耗时: {}".format(len(params_data), time.time() - tmp_time))
