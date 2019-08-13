@@ -1,3 +1,5 @@
+from easydict import EasyDict as edict
+
 # 设置运行环境, 1表示正式环境, 0表示测试环境
 env_manage = {
     # '172.16.181.140': 1,  # 118.31.225.209
@@ -12,9 +14,15 @@ env_manage = {
 log_dir = './log'
 tmp_image_dir = '../tmp_image_dir'
 
-image_process_thread_num = 3
+image_process_thread_num = 5
 face_cluster_thread_num = 2
 wonderful_gen_thread_num = 1
+
+# 模块开关控制
+image_making_switch = True
+face_cluster_switch = True
+image_quality_assessment_switch = False
+id_classify_switch = True
 
 redis_image_queue_name = "mc_image_queue_list"
 redis_face_info_name = "mc_face_info_list-{}"
@@ -63,7 +71,7 @@ class AccountConf:
             # self.res_port = 6379
             # self.res_decode_responses = True
             # self.res_password = "ADe867xb1r"
-            self.res_host = 'localhost'
+            self.res_host = '172.16.172.127'
             self.res_port = 6379
             self.res_decode_responses = True
             self.res_password = ""

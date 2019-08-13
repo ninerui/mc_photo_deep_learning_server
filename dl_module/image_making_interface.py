@@ -67,31 +67,54 @@ def preprocess(img):
 class ImageMakingWithOpenImage:
     def __init__(self, model_path='./models/open_image_graph_5000.pb'):
         oi_5000_graph = tf_tools.load_pb_model(model_path)
+        # config = tf.ConfigProto()
+        # config.intra_op_parallelism_threads = 44
+        # config.inter_op_parallelism_threads = 44
         self.oi_5000_sess = tf.Session(graph=oi_5000_graph)
         self.oi_5000_input = oi_5000_graph.get_tensor_by_name('input_values:0')
         self.oi_5000_prob = oi_5000_graph.get_tensor_by_name('multi_predictions:0')
         self.labels, self.object = _load_dictionary_1("./data/open_image_label_5000.txt")
 
+    def parser_res(self, pred_eval, threshold):
+        top_k = pred_eval.argsort()[::-1]
+        tag = []
+        objects = set()
+        is_black_and_white = 0
+        for i in top_k:
+            if i == 550:  # 是黑白图
+                is_black_and_white = 1
+            confidence = pred_eval[i]
+            if confidence < threshold:
+                break
+            tag.append({"value": self.labels.get(str(i), ""), "confidence": (int(confidence * 100) + 5000)})
+            if self.object.get(str(i), ""):
+                objects.add(self.object.get(str(i), ""))
+        return {"tags": tag, "is_black_and_white": is_black_and_white, "classes": list(objects)}
+
     def get_tag(self, img_path, threshold=0.5):
-        try:
-            compressed_image = tf.gfile.FastGFile(img_path, 'rb').read()
-            predictions_eval = self.oi_5000_sess.run(self.oi_5000_prob, feed_dict={self.oi_5000_input: [compressed_image]})
-            top_k = predictions_eval.argsort()[::-1]
-            tag = []
-            objects = set()
-            is_black_and_white = 0
-            for i in top_k:
-                if i == 550:  # 是黑白图
-                    is_black_and_white = 1
-                confidence = predictions_eval[i]
-                if confidence < threshold:
-                    break
-                tag.append({"value": self.labels.get(str(i), ""), "confidence": (int(confidence * 100) + 5000)})
-                if self.object.get(str(i), ""):
-                    objects.add(self.object.get(str(i), ""))
-            return tag, is_black_and_white, list(objects)
-        except:
-            return [], 0, []
+        input_data = [tf.gfile.FastGFile(i, 'rb').read() for i in img_path]
+        predictions_eval = self.oi_5000_sess.run(self.oi_5000_prob, feed_dict={self.oi_5000_input: input_data})
+        if len(img_path) == 1:
+            return [self.parser_res(predictions_eval, threshold)]
+        else:
+            all_data = []
+            for i in predictions_eval:
+                all_data.append(self.parser_res(i, threshold))
+            return all_data
+        # top_k = predictions_eval.argsort()[::-1]
+        # tag = []
+        # objects = set()
+        # is_black_and_white = 0
+        # for i in top_k:
+        #     if i == 550:  # 是黑白图
+        #         is_black_and_white = 1
+        #     confidence = predictions_eval[i]
+        #     if confidence < threshold:
+        #         break
+        #     tag.append({"value": self.labels.get(str(i), ""), "confidence": (int(confidence * 100) + 5000)})
+        #     if self.object.get(str(i), ""):
+        #         objects.add(self.object.get(str(i), ""))
+        # return tag, is_black_and_white, list(objects)
 
 
 class ImageMakingWithTencent:

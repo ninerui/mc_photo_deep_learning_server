@@ -1,3 +1,4 @@
+import os
 import subprocess
 
 import cv2
@@ -5,6 +6,9 @@ import pyheif
 import numpy as np
 # from PIL import Image
 from skimage import transform as trans
+from urllib.request import urlretrieve
+
+from utils import util
 
 
 def do_flip(data):
@@ -67,12 +71,22 @@ def heic2jpg(src_file, result_file):
     img = np.fromstring(heif_file.data, dtype=np.uint8).reshape((heif_file.size[1], heif_file.size[0], 3))
     cv2.imwrite(result_file, cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
 
-# def read_img_file(img_path):
-#     def read_img(img_path):
-#         image_id, image_type = os.path.splitext(img_path)
-#         if image_type.lower() == '.heic':
-#             heif_file = pyheif.read_heif(img_path)
-#             pi = Image.frombytes(mode=heif_file.mode, size=heif_file.size, data=heif_file.data)
-#         else:
-#             pi = Image.open(img_path)
-#         return pi
+
+def download_image(image_url, output_dir):
+    image_name = os.path.basename(image_url)
+    image_path = os.path.join(output_dir, image_name)
+    try:
+        urlretrieve(image_url, image_path)
+    except:
+        return -1, None
+    image_id, image_type = os.path.splitext(image_name)
+    if image_type.lower() == '.heic':
+        new_img_path = os.path.join(output_dir, "{}.jpg".format(image_id))
+        try:
+            heic2jpg(image_path, new_img_path)
+            if os.path.isfile(new_img_path):
+                util.removefile(image_path)
+                return new_img_path
+        except:
+            return -2, image_path
+    return 1, image_path

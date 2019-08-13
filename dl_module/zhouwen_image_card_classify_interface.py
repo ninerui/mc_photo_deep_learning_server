@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.platform import gfile
@@ -16,11 +17,17 @@ class IDCardClassify:
 
     def get_res(self, img):
         with self.sess.graph.as_default():
-            img = np.expand_dims(np.expand_dims(img, axis=2), axis=0) / 255.0
-            pred = self.sess.run(self.softmax_tensor, {self.input: img}).tolist()[0]
-            label = pred.index(max(pred))
-            confidence = max(pred)
-            if label == 0 and confidence > 0.99999:
-                return 1
-            else:
-                return 0
+            img = [np.expand_dims(cv2.cvtColor(cv2.resize(i, (64, 64)), cv2.COLOR_BGR2GRAY), axis=2) for i in img]
+            img = np.array(img) / 255.0
+            # img = np.expand_dims(np.expand_dims(img, ), axis=0) / 255.0
+            pred = self.sess.run(self.softmax_tensor, {self.input: img}).tolist()
+            res_list = []
+            for i in range(len(pred)):
+                pred_ = pred[i]
+                label = pred_.index(max(pred_))
+                confidence = max(pred_)
+                if label == 0 and confidence > 0.99999:
+                    res_list.append(['Éí·İÖ¤'])
+                else:
+                    res_list.append([])
+        return res_list
