@@ -86,7 +86,7 @@ def download_image(image_url, output_dir):
             heic2jpg(image_path, new_img_path)
             if os.path.isfile(new_img_path):
                 util.removefile(image_path)
-                return new_img_path
+                return 1, new_img_path
         except:
             return -2, image_path
     return 1, image_path
