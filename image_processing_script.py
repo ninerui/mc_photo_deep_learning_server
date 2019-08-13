@@ -44,6 +44,14 @@ except Exception as e1:
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
+def check_restart(sleep_time):
+    reboot_code = r_object.get_content(local_ip)
+    if reboot_code == '1':
+        logging.info('发现服务需要重启, 重启代码: {}'.format(reboot_code))
+        raise SystemExit
+    time.sleep(sleep_time)
+
+
 class BaseThread(threading.Thread):
     """基础的线程"""
     pass
@@ -141,11 +149,13 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
         time.sleep(9 / max(1, params_count))
 
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
+        fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
+        fe_detection = face_emotion_interface.FaceEmotionKeras()  # 表情检测模型, 不能跨线程
         self.log_info("人脸聚类线程已启动...")
         while True:
-            face_user_key = r_object.rpop_content(conf.redis_face_info_name)
+            face_user_key = r_object.rpop_content(conf.redis_face_info_key_list)
             if not face_user_key:
-                self.check_restart(9)
+                check_restart(1)
                 continue
             # r_object.llen_content(face_user_key)
             user_id = face_user_key.split('-')[1]
@@ -153,7 +163,7 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
             oss_running_file = "face_cluster_data/{}/.running".format(user_id)
             exist = oss_bucket.object_exists(oss_running_file)
             if exist:
-                self.check_restart(9)
+                check_restart(1)
                 continue
             oss_bucket.put_object(oss_running_file, 'running')
             try:
@@ -171,14 +181,24 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
                 face_data = []
                 success_image_set = set()
                 while True:
-                    data_ = r_object.rpop_content(face_user_key)
+                    data_ = r_object.rpop_content(conf.redis_face_info_name)
                     if not data_:
                         time.sleep(2)  # 暂停2s, 没有新人脸便去聚类
-                        data_ = r_object.rpop_content(face_user_key)
+                        data_ = r_object.rpop_content(conf.redis_face_info_name)
                         if not data_:
                             break
+                    # if str(user_id) != '11373':
+                    #     continue
                     data_ = json.loads(data_)
                     media_id = data_.get('face_id', "").split('_')[0]
+
+                    warped = data_.get('face_data')
+                    emotion_label_arg = fe_detection.detection_emotion(warped)
+                    warped = np.transpose(warped, (2, 0, 1))
+                    emb = fr_arcface.get_feature(warped)
+                    data_['face_feature'] = np.array(emb).tolist()
+                    data_['emotionStr'] = emotion_label_arg
+
                     face_data.append(data_)
                     success_image_set.add(media_id)
                 if len(face_data) != 0:
@@ -216,6 +236,7 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
                 exist = oss_bucket.object_exists(oss_running_file)
                 if exist:
                     oss_bucket.delete_object(oss_running_file)
+                r_object.srem_content(conf.redis_face_info_key_set, face_user_key)
                 self.check_restart(9)
 
 
@@ -225,6 +246,9 @@ def get_rds_next_data(rds_name, number):
         params_data = r_object.rpop_content(rds_name)
         if params_data:
             params = json.loads(params_data)
+            user_id = params.get("user_id")
+            # if str(user_id) != '11373':
+            #     continue
             image_url = params.get("image_url")
             download_code, image_path = image_tools.download_image(image_url, conf.tmp_image_dir)
             if download_code == -1:  # 下载失败, 打回列表
@@ -277,7 +301,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 continue
         return call_suc_status
 
-    def parser_face(self, user_id, media_id, image):
+    def parser_face(self, user_id, media_id, image, a, b):
         face_count = 0
         try:
             tmp_time = time.time()
@@ -332,17 +356,26 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 oss_bucket.put_object_from_file(oss_face_image_name, face_image_path)
                 util.removefile(face_image_path)
 
-                r_object.lpush_content(conf.redis_face_info_name, json.dumps({
+                # emotion_label_arg = a.detection_emotion(warped)
+                # warped = np.transpose(warped, (2, 0, 1))
+                # emb = b.get_feature(warped)
+
+                redis_user_key = conf.redis_face_info_name.format(user_id)
+                r_set_code = r_object.sadd_content(conf.redis_face_info_key_set, redis_user_key)
+                if r_set_code == 1:
+                    r_object.lpush_content(conf.redis_face_info_key_list, redis_user_key)
+
+                r_object.lpush_content(redis_user_key, json.dumps({
                     "face_id": "{}_{}".format(media_id, idx),
                     "face_box": [left, top, right - left, bottom - top],
-                    "user_id": user_id,
+                    # "user_id": user_id,
                     "face_data": warped.tolist(),
                     # "face_feature": np.array(emb).tolist(),
                     # "emotionStr": emotion_label_arg,
                 }))
                 # self.log_info("{}_{}".format(media_id, idx))
                 face_count += 1
-                # emotion_label_arg = fe_detection.detection_emotion(warped)
+
                 #
                 # warped = np.transpose(warped, (2, 0, 1))
                 # emb = fr_model.get_feature(warped)
@@ -372,21 +405,21 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         res = 0
         try:
             tmp_time = time.time()
-            scale = 600. / max(image.shape)
-            image = cv2.resize(image, (int(image.shape[1] * scale), int(image.shape[0] * scale)))
-            humans = pose_estimator_model.inference(image, resize_to_default=False, upsample_size=1.0)
-            for human in humans:
-                tmp = False
-                for k, v in human.body_parts.items():
-                    if k in [0, 1]:
-                        x_, y_ = v.x, v.y
-                        if abs(x_ - 0.5) < 0.1:
-                            tmp = True
-                if tmp:
-                    res += 1
-                if res > 1:
-                    res = 0
-                    break
+            # scale = 600. / max(image.shape)
+            # image = cv2.resize(image, (int(image.shape[1] * scale), int(image.shape[0] * scale)))
+            # humans = pose_estimator_model.inference(image, resize_to_default=False, upsample_size=8.0)
+            # for human in humans:
+            #     tmp = False
+            #     for k, v in human.body_parts.items():
+            #         if k in [0, 1]:
+            #             x_, y_ = v.x, v.y
+            #             if abs(x_ - 0.5) < 0.1:
+            #                 tmp = True
+            #     if tmp:
+            #         res += 1
+            #     if res > 1:
+            #         res = 0
+            #         break
             self.log_info("目标检测耗时: {}".format(time.time() - tmp_time))
         except Exception as e:
             self.log_exception(e)
@@ -397,7 +430,8 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         start_time = time.time()
         params_data = get_rds_next_data(conf.res_image_making_name, 3)
         if len(params_data) == 0:
-            self.check_restart(1)
+            # check_restart(1)
+            # self.check_restart(1)
             return
         self.log_info("{} 张图片下载及转换耗时: {}".format(len(params_data), time.time() - start_time))
         image_path_list = [param.get('image_path') for param in params_data]
@@ -445,14 +479,14 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
         # fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
         # fe_detection = face_emotion_interface.FaceEmotionKeras()  # 表情检测模型, 不能跨线程
-        self.log_info("图片解析线程已启动...")
+        logging.info("图片解析线程已启动...")
         while True:
             try:
                 self.main_func()
             except Exception as e:
-                self.log_exception("处理失败\n{}".format(e))
+                logging.exception("处理失败\n{}".format(e))
             finally:
-                self.check_restart(9)
+                check_restart(1)
 
 
 def load_image_into_numpy_array(image):
@@ -514,28 +548,32 @@ class GenerationWonderfulImageThread(threading.Thread):
     def run(self):
         self.log_info("精彩生成线程已启动...")
         while True:
-            params_count = r_object.llen_content(conf.res_wonderful_gen_name)
-            params = r_object.rpop_content(conf.res_wonderful_gen_name)
-            if not params:
-                self.check_restart(params_count)
-                continue
-            self.log_info("开始生成精彩, 剩余数据: {} 条".format(params_count - 1))
-            params = json.loads(params)
-            wonderful_type = params.get("type")
-            user_id = params.get("userId")
-            media_id = params.get("mediaId")
-            image_url = params.get('imageUrl', None)
-            image_local_path = params.get('imageLocalPath', None)
-            callback_url = params.get('callbackUrl', conf.wonderful_callback_url)
-            if image_url is not None:
-                image_path = self.download_image(image_url)
-            else:
-                image_path = params.get("image_path")
-            assert os.path.isfile(image_path)
             try:
+                params_count = r_object.llen_content(conf.res_wonderful_gen_name)
+                params = r_object.rpop_content(conf.res_wonderful_gen_name)
+                if not params:
+                    self.check_restart(params_count)
+                    continue
+                params = json.loads(params)
+                self.log_info("开始生成精彩, 剩余数据: {} 条, 当前数据: {}".format(params_count - 1, params))
+                wonderful_type = params.get("type")
+                user_id = params.get("userId")
+                # if str(user_id) != "11373":
+                #     continue
+                media_id = params.get("mediaId")
+                image_url = params.get('imageUrl', None)
+                image_local_path = params.get('imageLocalPath', None)
+                callback_url = params.get('callbackUrl', conf.wonderful_callback_url)
+                if image_url is not None:
+                    image_path = self.download_image(image_url)
+                else:
+                    image_path = params.get("image_path")
+                assert os.path.isfile(image_path)
+
                 output_path = os.path.join(conf.tmp_image_dir, "{}_{}.jpg".format(media_id, wonderful_type))
                 oss_image_path = "wonderful_image/{}/{}/{}_{}.jpg".format(
                     wonderful_type, user_id, media_id, wonderful_type)
+                self.log_info(wonderful_type)
                 if int(wonderful_type) == 11:  # 风格化照片
                     image = imageio.imread(image_path)
                     scale = min(1920. / max(image.shape), 1.)
@@ -546,7 +584,7 @@ class GenerationWonderfulImageThread(threading.Thread):
                     imageio.imwrite(output_path, output[0] * 255)
                 elif int(wonderful_type) == 12:  # 自动上色
                     colorizer_model.get_result_path(image_path, output_path, render_factor=35)
-                elif int(wonderful_type) == 9:
+                elif int(wonderful_type) == 9:  # 局部彩色
                     image = Image.open(image_path)
                     image_np = load_image_into_numpy_array(image)
                     image_np_expanded = np.expand_dims(image_np, axis=0)

@@ -26,7 +26,10 @@ class ConnectRedis:
         self.r_object.lpush(key, value)
 
     def sadd_content(self, key, value):
-        self.r_object.sadd(key, value)
+        return self.r_object.sadd(key, value)
+
+    def srem_content(self, key, value):
+        return self.r_object.srem(key, value)
 
     def spop_content(self, key):
         return self.r_object.spop(key)

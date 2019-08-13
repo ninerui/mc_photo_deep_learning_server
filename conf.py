@@ -13,7 +13,7 @@ log_dir = './log'
 tmp_image_dir = '../tmp_image_dir'
 
 image_process_thread_num = 3
-face_cluster_thread_num = 0
+face_cluster_thread_num = 1
 wonderful_gen_thread_num = 1
 
 # 模块开关控制
@@ -23,7 +23,7 @@ image_quality_assessment_switch = False
 id_classify_switch = True
 
 redis_image_queue_name = "mc_image_queue_list"
-redis_face_info_name = "mc_face_info_data"
+redis_face_info_name = "mc_face_info_list-{}"
 redis_face_info_key_set = "mc_face_info_key_set"
 redis_face_info_key_list = "mc_face_info_key_list"
 
