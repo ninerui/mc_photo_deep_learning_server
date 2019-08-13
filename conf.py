@@ -1,5 +1,3 @@
-from easydict import EasyDict as edict
-
 # 设置运行环境, 1表示正式环境, 0表示测试环境
 env_manage = {
     # '172.16.181.140': 1,  # 118.31.225.209
