@@ -57,34 +57,6 @@ class BaseThread(threading.Thread):
     pass
 
 
-# def download_image(image_url):
-#     image_name = os.path.basename(image_url)
-#     image_path = os.path.join(conf.tmp_image_dir, image_name)
-#     try:
-#         urlretrieve(image_url, image_path)
-#     except Exception as e:
-#         # self.log_exception("{}下载失败\n{}".format(image_url, e))
-#         return None
-#     image_id, image_type = os.path.splitext(image_name)
-#     if image_type.lower() == '.heic':
-#         try:
-#             new_img_path = os.path.join(conf.tmp_image_dir, "{}.jpg".format(image_id))
-#             tmp_time = time.time()
-#             os.system("convert {} {}".format(image_path, new_img_path))
-#             # self.log_info("{}转jpg耗时: {}".format(image_name, time.time() - tmp_time))
-#             if os.path.isfile(new_img_path):
-#                 util.removefile(image_path)
-#                 return new_img_path
-#             else:
-#                 # self.log_exception("{}转换失败".format(image_url))
-#                 return None
-#         except Exception as e:
-#             # self.log_exception("{}转换失败\n{}".format(image_url, e))
-#             return None
-#     else:
-#         return image_path
-
-
 class FilePathConf:
     def __init__(self, user_id):
         self.oss_running_file = "face_cluster_data/{}/.running".format(user_id)
@@ -591,49 +563,34 @@ class GenerationWonderfulImageThread(threading.Thread):
                     image_np_expanded = np.expand_dims(image_np, axis=0)
                     output_dict = object_mask_detection_model.detect_object(image_np_expanded)
 
-                    box_to_display_str_map = collections.defaultdict(list)
-                    box_to_color_map = collections.defaultdict(str)
-                    box_to_instance_masks_map = {}
-                    box_to_instance_boundaries_map = {}
-                    box_to_keypoints_map = collections.defaultdict(list)
-                    box_to_track_ids_map = {}
-                    max_boxes_to_draw = 20
+                    # box_to_display_str_map = collections.defaultdict(list)
+                    # box_to_color_map = collections.defaultdict(str)
+                    # box_to_instance_masks_map = {}
+                    # box_to_instance_boundaries_map = {}
+                    # box_to_keypoints_map = collections.defaultdict(list)
+                    # box_to_track_ids_map = {}
+                    max_boxes_to_draw = 10
                     boxes = output_dict['detection_boxes']
                     classes = output_dict['detection_classes']
                     scores = output_dict['detection_scores']
                     min_score_thresh = .5
                     instance_masks = output_dict.get('detection_masks')
-                    instance_boundaries = None
-                    keypoints = None
-                    track_ids = None
-                    agnostic_mode = False
-                    groundtruth_box_visualization_color = 'black'
+                    # instance_boundaries = None
+                    # keypoints = None
+                    # track_ids = None
+                    # agnostic_mode = False
+                    # groundtruth_box_visualization_color = 'black'
                     for i in range(min(max_boxes_to_draw, boxes.shape[0])):
-                        if scores is None or scores[i] > min_score_thresh:
-                            box = tuple(boxes[i].tolist())
-                            if instance_masks is not None:
-                                box_to_instance_masks_map[box] = instance_masks[i]
-                            if instance_boundaries is not None:
-                                box_to_instance_boundaries_map[box] = instance_boundaries[i]
-                            if keypoints is not None:
-                                box_to_keypoints_map[box].extend(keypoints[i])
-                            if track_ids is not None:
-                                box_to_track_ids_map[box] = track_ids[i]
-                            if scores is None:
-                                box_to_color_map[box] = groundtruth_box_visualization_color
-                            else:
-                                display_str = ''
-                                box_to_display_str_map[box].append(display_str)
-                                if agnostic_mode:
-                                    box_to_color_map[box] = 'DarkOrange'
-                    for box, color in box_to_color_map.items():
-                        ymin, xmin, ymax, xmax = box
-                        if instance_masks is not None:
-                            rgb = ImageColor.getrgb(color)
+                        if int(classes[i]) == 1 and scores[i] > min_score_thresh:
+                            rgb = ImageColor.getrgb('black')
                             pil_image = Image.fromarray(image_np)
-                            pil_image_blur = pil_image.filter(ImageFilter.BLUR)
-                            pil_image_gray = Image.fromarray(pil_image_blur).convert('L')
-                            mask = box_to_instance_masks_map[box]
+
+                            pil_image_gray = pil_image.convert('L')
+
+                            # pil_image_blur = pil_image.filter(ImageFilter.BLUR)
+                            # pil_image_gray = pil_image_blur.convert('L')
+
+                            mask = instance_masks[i]
                             solid_color = np.expand_dims(np.ones_like(mask), axis=2) * np.reshape(list(rgb), [1, 1, 3])
                             pil_solid_color = Image.fromarray(np.uint8(solid_color)).convert('RGBA')
                             pil_mask = Image.fromarray(np.uint8(255.0 * 1. * mask)).convert('L')
@@ -643,6 +600,41 @@ class GenerationWonderfulImageThread(threading.Thread):
                             pil_image = Image.composite(pil_solid_color_1, pil_image_gray.convert("RGB"), pil_mask)
                             np.copyto(image_np, np.array(pil_image.convert('RGB')))
                             break
+                    # for i in range(min(max_boxes_to_draw, boxes.shape[0])):
+                    #     if scores is None or scores[i] > min_score_thresh:
+                    #         box = tuple(boxes[i].tolist())
+                    #         if instance_masks is not None:
+                    #             box_to_instance_masks_map[box] = instance_masks[i]
+                    #         if instance_boundaries is not None:
+                    #             box_to_instance_boundaries_map[box] = instance_boundaries[i]
+                    #         if keypoints is not None:
+                    #             box_to_keypoints_map[box].extend(keypoints[i])
+                    #         if track_ids is not None:
+                    #             box_to_track_ids_map[box] = track_ids[i]
+                    #         if scores is None:
+                    #             box_to_color_map[box] = groundtruth_box_visualization_color
+                    #         else:
+                    #             display_str = ''
+                    #             box_to_display_str_map[box].append(display_str)
+                    #             if agnostic_mode:
+                    #                 box_to_color_map[box] = 'DarkOrange'
+                    # for box, color in box_to_color_map.items():
+                    #     ymin, xmin, ymax, xmax = box
+                    #     if instance_masks is not None:
+                    #         rgb = ImageColor.getrgb(color)
+                    #         pil_image = Image.fromarray(image_np)
+                    #         pil_image_blur = pil_image.filter(ImageFilter.BLUR)
+                    #         pil_image_gray = Image.fromarray(pil_image_blur).convert('L')
+                    #         mask = box_to_instance_masks_map[box]
+                    #         solid_color = np.expand_dims(np.ones_like(mask), axis=2) * np.reshape(list(rgb), [1, 1, 3])
+                    #         pil_solid_color = Image.fromarray(np.uint8(solid_color)).convert('RGBA')
+                    #         pil_mask = Image.fromarray(np.uint8(255.0 * 1. * mask)).convert('L')
+                    #         pil_mask_1 = Image.fromarray(np.uint8(255.0 * 1. * mask)).convert('L')
+                    #         tmp_img = Image.composite(pil_image, pil_solid_color, pil_mask_1)
+                    #         pil_solid_color_1 = Image.fromarray(np.uint8(tmp_img)).convert('RGBA')
+                    #         pil_image = Image.composite(pil_solid_color_1, pil_image_gray.convert("RGB"), pil_mask)
+                    #         np.copyto(image_np, np.array(pil_image.convert('RGB')))
+                    #         break
                     cv2.imwrite(output_path, cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR))
 
                 oss_bucket.put_object_from_file(oss_image_path, output_path)
