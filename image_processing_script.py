@@ -581,7 +581,7 @@ class GenerationWonderfulImageThread(threading.Thread):
                     # agnostic_mode = False
                     # groundtruth_box_visualization_color = 'black'
                     for i in range(min(max_boxes_to_draw, boxes.shape[0])):
-                        if int(classes[i]) == 1 and scores[i] > min_score_thresh:
+                        if int(classes[i]) == 1:
                             rgb = ImageColor.getrgb('black')
                             pil_image = Image.fromarray(image_np)
 
