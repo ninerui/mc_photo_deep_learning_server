@@ -181,18 +181,18 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
                 face_data = []
                 success_image_set = set()
                 while True:
-                    data_ = r_object.rpop_content(conf.redis_face_info_name)
+                    data_ = r_object.rpop_content(face_user_key)
                     if not data_:
                         time.sleep(2)  # 暂停2s, 没有新人脸便去聚类
-                        data_ = r_object.rpop_content(conf.redis_face_info_name)
+                        data_ = r_object.rpop_content(face_user_key)
                         if not data_:
                             break
-                    # if str(user_id) != '11373':
+                    # if str(user_id) != '11374':
                     #     continue
                     data_ = json.loads(data_)
                     media_id = data_.get('face_id', "").split('_')[0]
 
-                    warped = data_.get('face_data')
+                    warped = np.array(data_.get('face_data'), dtype=np.float32)
                     emotion_label_arg = fe_detection.detection_emotion(warped)
                     warped = np.transpose(warped, (2, 0, 1))
                     emb = fr_arcface.get_feature(warped)
@@ -247,7 +247,7 @@ def get_rds_next_data(rds_name, number):
         if params_data:
             params = json.loads(params_data)
             user_id = params.get("user_id")
-            # if str(user_id) != '11373':
+            # if str(user_id) != '11374':
             #     continue
             image_url = params.get("image_url")
             download_code, image_path = image_tools.download_image(image_url, conf.tmp_image_dir)
@@ -558,7 +558,7 @@ class GenerationWonderfulImageThread(threading.Thread):
                 self.log_info("开始生成精彩, 剩余数据: {} 条, 当前数据: {}".format(params_count - 1, params))
                 wonderful_type = params.get("type")
                 user_id = params.get("userId")
-                # if str(user_id) != "11373":
+                # if str(user_id) != "11374":
                 #     continue
                 media_id = params.get("mediaId")
                 image_url = params.get('imageUrl', None)
