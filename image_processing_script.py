@@ -584,6 +584,7 @@ class GenerationWonderfulImageThread(threading.Thread):
                     imageio.imwrite(output_path, output[0] * 255)
                 elif int(wonderful_type) == 12:  # 自动上色
                     colorizer_model.get_result_path(image_path, output_path, render_factor=35)
+                    continue
                 elif int(wonderful_type) == 9:  # 局部彩色
                     image = Image.open(image_path)
                     image_np = load_image_into_numpy_array(image)
