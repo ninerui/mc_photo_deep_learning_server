@@ -421,6 +421,8 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         for idx in range(len(params_data)):
             tmp_data = params_data[idx]
             face_count = self.parser_face(tmp_data.get('user_id'), tmp_data.get('media_id'), image_list[idx])
+            b, g, r = cv2.split(image_list[idx])
+            is_black_and_white = 1 if ((b == g).all() and (b == r).all()) else 0
             data_json = {
                 'mediaId': tmp_data.get('media_id'),
                 'fileId': tmp_data.get('file_id'),
@@ -430,13 +432,14 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 'mediaInfo': str(json.dumps({
                     "certificateInfo": is_card_list[idx],
                     "thingsClass": tags_list[idx].get("classes")}, ensure_ascii=False)),
-                "isBlackAndWhite": tags_list[idx].get("is_black_and_white"),
+                # "isBlackAndWhite": tags_list[idx].get("is_black_and_white"),
+                "isBlackAndWhite": is_black_and_white,
                 "isLocalColor": self.get_is_local_color(image_list[idx]),
                 'existFace': min(face_count, 127),
             }
             call_results_status = self.call_url_func(params_data[idx].get('callback_url'), data_json=data_json)
 
-            if tags_list[idx].get("is_black_and_white") == 1:  # 是黑白图片
+            if is_black_and_white == 1:  # 是黑白图片
                 r_object.lpush_content(conf.res_wonderful_gen_name, json.dumps({
                     "type": 12,
                     "userId": tmp_data.get('user_id'),
@@ -529,6 +532,8 @@ class GenerationWonderfulImageThread(threading.Thread):
                 params = json.loads(params)
                 self.log_info("开始生成精彩, 剩余数据: {} 条, 当前数据: {}".format(params_count - 1, params))
                 wonderful_type = params.get("type")
+                if int(wonderful_type) != 12:
+                    continue
                 user_id = params.get("userId")
                 # if str(user_id) != "11374":
                 #     continue
@@ -555,8 +560,7 @@ class GenerationWonderfulImageThread(threading.Thread):
                     output = image_enhancement_model.get_image(image)
                     imageio.imwrite(output_path, output[0] * 255)
                 elif int(wonderful_type) == 12:  # 自动上色
-                    colorizer_model.get_result_path(image_path, output_path, render_factor=35)
-                    continue
+                    colorizer_model.get_result_path(image_path, output_path, render_factor=30)
                 elif int(wonderful_type) == 9:  # 局部彩色
                     image = Image.open(image_path)
                     image_np = load_image_into_numpy_array(image)
@@ -640,6 +644,8 @@ class GenerationWonderfulImageThread(threading.Thread):
                 oss_bucket.put_object_from_file(oss_image_path, output_path)
                 util.removefile(image_path)
                 util.removefile(output_path)
+                if int(wonderful_type) == 12:
+                    continue
                 call_url_func(user_id, callback_url, data_json={
                     "ossKey": oss_image_path,
                     "type": wonderful_type,

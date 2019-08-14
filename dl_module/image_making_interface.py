@@ -81,15 +81,16 @@ class ImageMakingWithOpenImage:
         objects = set()
         is_black_and_white = 0
         for i in top_k:
-            if i == 550:  # 是黑白图
-                is_black_and_white = 1
+            # if i == 550:  # 是黑白图
+            #     is_black_and_white = 1
             confidence = pred_eval[i]
             if confidence < threshold:
                 break
             tag.append({"value": self.labels.get(str(i), ""), "confidence": (int(confidence * 100) + 5000)})
             if self.object.get(str(i), ""):
                 objects.add(self.object.get(str(i), ""))
-        return {"tags": tag, "is_black_and_white": is_black_and_white, "classes": list(objects)}
+        # return {"tags": tag, "is_black_and_white": is_black_and_white, "classes": list(objects)}
+        return {"tags": tag, "classes": list(objects)}
 
     def get_tag(self, img_path, threshold=0.7):
         input_data = [tf.gfile.FastGFile(i, 'rb').read() for i in img_path]
