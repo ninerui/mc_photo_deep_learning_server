@@ -22,7 +22,6 @@ class IDCardClassify:
             img = np.array(img) / 255.0
             # img = np.expand_dims(np.expand_dims(img, ), axis=0) / 255.0
             pred = self.sess.run(self.softmax_tensor, {self.input: img}).tolist()
-            print(pred)
             res_list = []
             for i in range(len(pred)):
                 pred_ = pred[i]
