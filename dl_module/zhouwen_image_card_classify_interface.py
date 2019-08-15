@@ -22,12 +22,13 @@ class IDCardClassify:
             img = np.array(img) / 255.0
             # img = np.expand_dims(np.expand_dims(img, ), axis=0) / 255.0
             pred = self.sess.run(self.softmax_tensor, {self.input: img}).tolist()
+            print(pred)
             res_list = []
             for i in range(len(pred)):
                 pred_ = pred[i]
                 label = pred_.index(max(pred_))
                 confidence = max(pred_)
-                if label == 0 and confidence > 0.99999:
+                if label == 0 and confidence > 0.99:
                     res_list.append(['身份证'])
                 else:
                     res_list.append([])
