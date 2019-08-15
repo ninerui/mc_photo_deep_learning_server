@@ -70,7 +70,6 @@ class ObjectMaskDetection:
     def detect_object(self, image):
         detection_boxes = tf.squeeze(self.boxes, [0])
         detection_masks = tf.squeeze(self.masks, [0])
-        # Reframe is required to translate mask from box coordinates to image coordinates and fit the image size.
         real_num_detection = tf.cast(self.num_detection[0], tf.int32)
         detection_boxes = tf.slice(detection_boxes, [0, 0], [real_num_detection, -1])
         detection_masks = tf.slice(detection_masks, [0, 0, 0], [real_num_detection, -1, -1])

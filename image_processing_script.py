@@ -159,8 +159,8 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
                         data_ = r_object.rpop_content(face_user_key)
                         if not data_:
                             break
-                    # if str(user_id) != '11374':
-                    #     continue
+                    if str(user_id) != '11377':
+                        continue
                     data_ = json.loads(data_)
                     media_id = data_.get('face_id', "").split('_')[0]
 
@@ -219,8 +219,8 @@ def get_rds_next_data(rds_name, number):
         if params_data:
             params = json.loads(params_data)
             user_id = params.get("user_id")
-            # if str(user_id) != '11374':
-            #     continue
+            if str(user_id) != '11377':
+                continue
             image_url = params.get("image_url")
             download_code, image_path = image_tools.download_image(image_url, conf.tmp_image_dir)
             if download_code == -1:  # 下载失败, 打回列表
@@ -402,10 +402,9 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         start_time = time.time()
         params_data = get_rds_next_data(conf.res_image_making_name, 3)
         if len(params_data) == 0:
-            # check_restart(1)
-            # self.check_restart(1)
             return
-        self.log_info("{} 张图片下载及转换耗时: {}".format(len(params_data), time.time() - start_time))
+        self.log_info("{} 张图片下载及转换耗时: {}, 还剩{}条".format(
+            len(params_data), time.time() - start_time, r_object.llen_content(conf.res_image_making_name)))
         image_path_list = [param.get('image_path') for param in params_data]
         # 开始图片打标
         tmp_time = time.time()
@@ -421,6 +420,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         for idx in range(len(params_data)):
             tmp_data = params_data[idx]
             face_count = self.parser_face(tmp_data.get('user_id'), tmp_data.get('media_id'), image_list[idx])
+            # 图片是否需要上色判断
             b, g, r = cv2.split(image_list[idx])
             is_black_and_white = 1 if ((b == g).all() and (b == r).all()) else 0
             data_json = {
@@ -532,11 +532,11 @@ class GenerationWonderfulImageThread(threading.Thread):
                 params = json.loads(params)
                 self.log_info("开始生成精彩, 剩余数据: {} 条, 当前数据: {}".format(params_count - 1, params))
                 wonderful_type = params.get("type")
-                if int(wonderful_type) != 12:
-                    continue
-                user_id = params.get("userId")
-                # if str(user_id) != "11374":
+                # if int(wonderful_type) != 12:
                 #     continue
+                user_id = params.get("userId")
+                if str(user_id) != "11377":
+                    continue
                 media_id = params.get("mediaId")
                 image_url = params.get('imageUrl', None)
                 image_local_path = params.get('imageLocalPath', None)
@@ -604,41 +604,6 @@ class GenerationWonderfulImageThread(threading.Thread):
                             pil_image = Image.composite(pil_solid_color_1, pil_image_gray.convert("RGB"), pil_mask)
                             np.copyto(image_np, np.array(pil_image.convert('RGB')))
                             break
-                    # for i in range(min(max_boxes_to_draw, boxes.shape[0])):
-                    #     if scores is None or scores[i] > min_score_thresh:
-                    #         box = tuple(boxes[i].tolist())
-                    #         if instance_masks is not None:
-                    #             box_to_instance_masks_map[box] = instance_masks[i]
-                    #         if instance_boundaries is not None:
-                    #             box_to_instance_boundaries_map[box] = instance_boundaries[i]
-                    #         if keypoints is not None:
-                    #             box_to_keypoints_map[box].extend(keypoints[i])
-                    #         if track_ids is not None:
-                    #             box_to_track_ids_map[box] = track_ids[i]
-                    #         if scores is None:
-                    #             box_to_color_map[box] = groundtruth_box_visualization_color
-                    #         else:
-                    #             display_str = ''
-                    #             box_to_display_str_map[box].append(display_str)
-                    #             if agnostic_mode:
-                    #                 box_to_color_map[box] = 'DarkOrange'
-                    # for box, color in box_to_color_map.items():
-                    #     ymin, xmin, ymax, xmax = box
-                    #     if instance_masks is not None:
-                    #         rgb = ImageColor.getrgb(color)
-                    #         pil_image = Image.fromarray(image_np)
-                    #         pil_image_blur = pil_image.filter(ImageFilter.BLUR)
-                    #         pil_image_gray = Image.fromarray(pil_image_blur).convert('L')
-                    #         mask = box_to_instance_masks_map[box]
-                    #         solid_color = np.expand_dims(np.ones_like(mask), axis=2) * np.reshape(list(rgb), [1, 1, 3])
-                    #         pil_solid_color = Image.fromarray(np.uint8(solid_color)).convert('RGBA')
-                    #         pil_mask = Image.fromarray(np.uint8(255.0 * 1. * mask)).convert('L')
-                    #         pil_mask_1 = Image.fromarray(np.uint8(255.0 * 1. * mask)).convert('L')
-                    #         tmp_img = Image.composite(pil_image, pil_solid_color, pil_mask_1)
-                    #         pil_solid_color_1 = Image.fromarray(np.uint8(tmp_img)).convert('RGBA')
-                    #         pil_image = Image.composite(pil_solid_color_1, pil_image_gray.convert("RGB"), pil_mask)
-                    #         np.copyto(image_np, np.array(pil_image.convert('RGB')))
-                    #         break
                     cv2.imwrite(output_path, cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR))
 
                 oss_bucket.put_object_from_file(oss_image_path, output_path)

@@ -92,7 +92,7 @@ class ImageMakingWithOpenImage:
         # return {"tags": tag, "is_black_and_white": is_black_and_white, "classes": list(objects)}
         return {"tags": tag, "classes": list(objects)}
 
-    def get_tag(self, img_path, threshold=0.7):
+    def get_tag(self, img_path, threshold=0.8):
         input_data = [tf.gfile.FastGFile(i, 'rb').read() for i in img_path]
         predictions_eval = self.oi_5000_sess.run(self.oi_5000_prob, feed_dict={self.oi_5000_input: input_data})
         if len(img_path) == 1:

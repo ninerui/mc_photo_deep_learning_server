@@ -27,7 +27,7 @@ class IDCardClassify:
                 pred_ = pred[i]
                 label = pred_.index(max(pred_))
                 confidence = max(pred_)
-                if label == 0 and confidence > 0.99999:
+                if label == 0 and confidence > 0.98:
                     res_list.append(['身份证'])
                 else:
                     res_list.append([])
