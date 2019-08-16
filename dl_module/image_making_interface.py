@@ -78,7 +78,7 @@ class ImageMakingWithOpenImage:
     def parser_res(self, pred_eval, threshold):
         top_k = pred_eval.argsort()[::-1]
         tag = []
-        objects = set()
+        # objects = set()
         is_black_and_white = 0
         for i in top_k:
             # if i == 550:  # 是黑白图
@@ -86,11 +86,12 @@ class ImageMakingWithOpenImage:
             confidence = pred_eval[i]
             if confidence < threshold:
                 break
-            tag.append({"value": self.labels.get(str(i), ""), "confidence": (int(confidence * 100) + 5000)})
-            if self.object.get(str(i), ""):
-                objects.add(self.object.get(str(i), ""))
+            # tag.append({"value": self.labels.get(str(i), ""), "confidence": (int(confidence * 100) + 5000)})
+            tag.append(i + 1)
+            # if self.object.get(str(i), ""):
+            #     objects.add(self.object.get(str(i), ""))
         # return {"tags": tag, "is_black_and_white": is_black_and_white, "classes": list(objects)}
-        return {"tags": tag, "classes": list(objects)}
+        return {"tags": tag}
 
     def get_tag(self, img_path, threshold=0.8):
         input_data = [tf.gfile.FastGFile(i, 'rb').read() for i in img_path]

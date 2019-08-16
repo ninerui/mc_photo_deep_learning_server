@@ -432,7 +432,8 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 'exponent': detection_blur(image_list[idx]),
                 'mediaInfo': str(json.dumps({
                     "certificateInfo": is_card_list[idx],
-                    "thingsClass": tags_list[idx].get("classes")}, ensure_ascii=False)),
+                    # "thingsClass": tags_list[idx].get("classes")
+                }, ensure_ascii=False)),
                 # "isBlackAndWhite": tags_list[idx].get("is_black_and_white"),
                 "isBlackAndWhite": is_black_and_white,
                 "isLocalColor": self.get_is_local_color(image_list[idx]),
