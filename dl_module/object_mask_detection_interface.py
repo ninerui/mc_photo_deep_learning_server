@@ -87,6 +87,7 @@ class ObjectMaskDetection:
                                      'detection_masks': self.masks},
                                     feed_dict={self.image_tensor: image})
 
+
         # all outputs are float32 numpy arrays, so convert types as appropriate
         output_dict['num_detections'] = int(output_dict['num_detections'][0])
         output_dict['detection_classes'] = output_dict[

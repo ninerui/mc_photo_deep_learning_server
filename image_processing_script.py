@@ -27,6 +27,7 @@ from dl_module.fasterai.visualize import get_image_colorizer
 from dl_module.human_pose_estimation_interface import TfPoseEstimator
 from dl_module.object_mask_detection_interface import ObjectMaskDetection
 from dl_module.zhouwen_detect_blur import detection_blur
+from dl_module.image_local_color_interface import ImageLocalColor
 
 # from dl_module import object_detection_interface
 
@@ -159,8 +160,8 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
                         data_ = r_object.rpop_content(face_user_key)
                         if not data_:
                             break
-                    if str(user_id) != '11377':
-                        continue
+                    # if str(user_id) != '11380 ':
+                    #     continue
                     data_ = json.loads(data_)
                     media_id = data_.get('face_id', "").split('_')[0]
 
@@ -219,8 +220,8 @@ def get_rds_next_data(rds_name, number):
         if params_data:
             params = json.loads(params_data)
             user_id = params.get("user_id")
-            if str(user_id) != '11377':
-                continue
+            # if str(user_id) != '11380 ':
+            #     continue
             image_url = params.get("image_url")
             download_code, image_path = image_tools.download_image(image_url, conf.tmp_image_dir)
             if download_code == -1:  # 下载失败, 打回列表
@@ -535,8 +536,8 @@ class GenerationWonderfulImageThread(threading.Thread):
                 # if int(wonderful_type) != 12:
                 #     continue
                 user_id = params.get("userId")
-                if str(user_id) != "11377":
-                    continue
+                # if str(user_id) != "11380 ":
+                #     continue
                 media_id = params.get("mediaId")
                 image_url = params.get('imageUrl', None)
                 image_local_path = params.get('imageLocalPath', None)
@@ -562,49 +563,7 @@ class GenerationWonderfulImageThread(threading.Thread):
                 elif int(wonderful_type) == 12:  # 自动上色
                     colorizer_model.get_result_path(image_path, output_path, render_factor=30)
                 elif int(wonderful_type) == 9:  # 局部彩色
-                    image = Image.open(image_path)
-                    image_np = load_image_into_numpy_array(image)
-                    image_np_expanded = np.expand_dims(image_np, axis=0)
-                    output_dict = object_mask_detection_model.detect_object(image_np_expanded)
-
-                    # box_to_display_str_map = collections.defaultdict(list)
-                    # box_to_color_map = collections.defaultdict(str)
-                    # box_to_instance_masks_map = {}
-                    # box_to_instance_boundaries_map = {}
-                    # box_to_keypoints_map = collections.defaultdict(list)
-                    # box_to_track_ids_map = {}
-                    max_boxes_to_draw = 10
-                    boxes = output_dict['detection_boxes']
-                    classes = output_dict['detection_classes']
-                    scores = output_dict['detection_scores']
-                    min_score_thresh = .5
-                    instance_masks = output_dict.get('detection_masks')
-                    # instance_boundaries = None
-                    # keypoints = None
-                    # track_ids = None
-                    # agnostic_mode = False
-                    # groundtruth_box_visualization_color = 'black'
-                    for i in range(min(max_boxes_to_draw, boxes.shape[0])):
-                        if int(classes[i]) == 1:
-                            rgb = ImageColor.getrgb('black')
-                            pil_image = Image.fromarray(image_np)
-
-                            pil_image_gray = pil_image.convert('L')
-
-                            # pil_image_blur = pil_image.filter(ImageFilter.BLUR)
-                            # pil_image_gray = pil_image_blur.convert('L')
-
-                            mask = instance_masks[i]
-                            solid_color = np.expand_dims(np.ones_like(mask), axis=2) * np.reshape(list(rgb), [1, 1, 3])
-                            pil_solid_color = Image.fromarray(np.uint8(solid_color)).convert('RGBA')
-                            pil_mask = Image.fromarray(np.uint8(255.0 * 1. * mask)).convert('L')
-                            pil_mask_1 = Image.fromarray(np.uint8(255.0 * 1. * mask)).convert('L')
-                            tmp_img = Image.composite(pil_image, pil_solid_color, pil_mask_1)
-                            pil_solid_color_1 = Image.fromarray(np.uint8(tmp_img)).convert('RGBA')
-                            pil_image = Image.composite(pil_solid_color_1, pil_image_gray.convert("RGB"), pil_mask)
-                            np.copyto(image_np, np.array(pil_image.convert('RGB')))
-                            break
-                    cv2.imwrite(output_path, cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR))
+                    create_local_color.get_result(image_path, output_path)
 
                 oss_bucket.put_object_from_file(oss_image_path, output_path)
                 util.removefile(image_path)
@@ -660,10 +619,11 @@ if __name__ == '__main__':
     # fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
 
     colorizer_model = get_image_colorizer(artistic=True)
-    object_mask_detection_model = ObjectMaskDetection()
+    # object_mask_detection_model = ObjectMaskDetection()
     image_enhancement_model = image_enhancement_interface.AIChallengeWithDPEDSRCNN()
     # od_model = object_detection_interface.ObjectDetectionWithSSDMobilenetV2()
     pose_estimator_model = TfPoseEstimator('./models/pose_estimator_models.pb', target_size=(432, 368))
+    create_local_color = ImageLocalColor()
 
     # logging.info("即将开启的线程数: {}".format(conf.thread_num))
     # 创建线程并开始图片打标线程
