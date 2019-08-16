@@ -1,6 +1,3 @@
-import os
-import tarfile
-
 import numpy as np
 import tensorflow as tf
 from PIL import Image, ImageColor
@@ -18,16 +15,10 @@ class DeepLabModel(object):
         """Creates and loads pretrained deeplab model."""
         self.graph = tf.Graph()
 
-        graph_def = None
-        # Extract frozen graph from tar archive.
-        tar_file = tarfile.open(tarball_path)
-        for tar_info in tar_file.getmembers():
-            if self.FROZEN_GRAPH_NAME in os.path.basename(tar_info.name):
-                file_handle = tar_file.extractfile(tar_info)
-                graph_def = tf.GraphDef.FromString(file_handle.read())
-                break
-
-        tar_file.close()
+        graph_def = tf.GraphDef()
+        with tf.gfile.GFile(tarball_path, 'rb') as fid:
+            serialized_graph = fid.read()
+            graph_def.ParseFromString(serialized_graph)
 
         if graph_def is None:
             raise RuntimeError('Cannot find inference graph in tar archive.')
@@ -103,7 +94,7 @@ def label_to_color_image(label):
 
 class ImageLocalColor:
     def __init__(self):
-        self.MODEL = DeepLabModel('./models/deeplabv3_pascal_trainval_2018_01_04.tar.gz')
+        self.MODEL = DeepLabModel('./models/deeplabv3_pascal_trainval_2018_01_04.pb')
 
     def get_result(self, input, output):
         original_im = Image.open(input)
@@ -115,7 +106,7 @@ class ImageLocalColor:
         # pil_image_blur = pil_image.filter(ImageFilter.BLUR)
         # pil_image_gray = pil_image_blur.convert('L')
         mask = seg_map
-        solid_color = np.expand_dims(np.ones_like(mask), axis=2) * np.reshape(list(rgb), [1, 1, 3])
+        # solid_color = np.expand_dims(np.ones_like(mask), axis=2) * np.reshape(list(rgb), [1, 1, 3])
         pil_solid_color = Image.fromarray(np.uint8(seg_map)).convert('RGBA')
         pil_mask = Image.fromarray(np.uint8(255.0 * 1. * mask)).convert('L')
         pil_mask_1 = Image.fromarray(np.uint8(255.0 * 1. * mask)).convert('L')
