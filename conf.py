@@ -27,6 +27,8 @@ redis_face_info_name = "mc_face_info_list-{}"
 redis_face_info_key_set = "mc_face_info_key_set"
 redis_face_info_key_list = "mc_face_info_key_list"
 
+redis_image_making_list_name = "mc_image_making_list"
+redis_image_making_set_name = "mc_image_making_set"
 res_face_cluster_name = "mc_face_cluster_list"
 res_image_making_name = "mc_image_making_list"
 res_wonderful_gen_name = "mc_wonderful_gen_list"
@@ -38,7 +40,7 @@ wonderful_callback_url = 'http://172.16.181.135:8081/ai/receiveWonderfulData'
 class AccountConf:
     def __init__(self, env_code):
         assert env_code in [0, 1]
-        if env_code == 1:
+        if env_code == 1:  # 正式环境
             # oss对象
             self.accessKeyId = 'LTAI3MSuaxizYX7d'
             self.accessKeySecret = 'YEkkxK1nOeZgVJMl3UeVSdkFavjemu'
@@ -50,7 +52,7 @@ class AccountConf:
             self.res_port = 6379
             self.res_decode_responses = True
             self.res_password = "McPhotos$2019"
-        else:
+        else:  # 测试环境
             # oss对象
             self.accessKeyId = 'LTAIRje9cQipM55x'
             self.accessKeySecret = 'U0oKHXSxsBavNnkzrGcWkpaDlHs9yH'
@@ -69,10 +71,10 @@ class AccountConf:
             # self.res_port = 6379
             # self.res_decode_responses = True
             # self.res_password = "ADe867xb1r"
-            self.res_host = '172.16.172.127'
+            self.res_host = 'r-bp1s3ywv637g7qrzfy.redis.rds.aliyuncs.com'
             self.res_port = 6379
             self.res_decode_responses = True
-            self.res_password = ""
+            self.res_password = "Aszs2019"
 
 
 # 返回代码参数
