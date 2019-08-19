@@ -28,6 +28,7 @@ from dl_module.human_pose_estimation_interface import TfPoseEstimator
 from dl_module.object_mask_detection_interface import ObjectMaskDetection
 from dl_module.zhouwen_detect_blur import detection_blur
 from dl_module.image_local_color_interface import ImageLocalColor
+from dl_module.image_autocolor_interface import ImageAutoColor
 
 # from dl_module import object_detection_interface
 
@@ -552,7 +553,8 @@ class GenerationWonderfulImageThread(threading.Thread):
                 output_path = os.path.join(conf.tmp_image_dir, "{}_{}.jpg".format(media_id, wonderful_type))
                 oss_image_path = "wonderful_image/{}/{}/{}_{}.jpg".format(
                     wonderful_type, user_id, media_id, wonderful_type)
-                self.log_info(wonderful_type)
+
+                tmp_time = time.time()
                 if int(wonderful_type) == 11:  # 风格化照片
                     image = imageio.imread(image_path)
                     scale = min(1920. / max(image.shape), 1.)
@@ -562,10 +564,11 @@ class GenerationWonderfulImageThread(threading.Thread):
                     output = image_enhancement_model.get_image(image)
                     imageio.imwrite(output_path, output[0] * 255)
                 elif int(wonderful_type) == 12:  # 自动上色
-                    colorizer_model.get_result_path(image_path, output_path, render_factor=30)
+                    autocolor_model.get_result_image(image_path, output_path)
+                    # colorizer_model.get_result_path(image_path, output_path, render_factor=30)
                 elif int(wonderful_type) == 9:  # 局部彩色
                     create_local_color.get_result(image_path, output_path)
-
+                self.log_info("wonderful_type: {}, 耗时: {}".format(wonderful_type, time.time() - tmp_time))
                 oss_bucket.put_object_from_file(oss_image_path, output_path)
                 util.removefile(image_path)
                 util.removefile(output_path)
@@ -619,8 +622,9 @@ if __name__ == '__main__':
 
     # fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
 
-    colorizer_model = get_image_colorizer(artistic=True)
+    # colorizer_model = get_image_colorizer(artistic=True)
     # object_mask_detection_model = ObjectMaskDetection()
+    autocolor_model = ImageAutoColor()
     image_enhancement_model = image_enhancement_interface.AIChallengeWithDPEDSRCNN()
     # od_model = object_detection_interface.ObjectDetectionWithSSDMobilenetV2()
     pose_estimator_model = TfPoseEstimator('./models/pose_estimator_models.pb', target_size=(432, 368))

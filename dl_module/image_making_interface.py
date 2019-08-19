@@ -67,9 +67,6 @@ def preprocess(img):
 class ImageMakingWithOpenImage:
     def __init__(self, model_path='./models/open_image_graph_5000.pb'):
         oi_5000_graph = tf_tools.load_pb_model(model_path)
-        # config = tf.ConfigProto()
-        # config.intra_op_parallelism_threads = 44
-        # config.inter_op_parallelism_threads = 44
         self.oi_5000_sess = tf.Session(graph=oi_5000_graph)
         self.oi_5000_input = oi_5000_graph.get_tensor_by_name('input_values:0')
         self.oi_5000_prob = oi_5000_graph.get_tensor_by_name('multi_predictions:0')
@@ -79,10 +76,7 @@ class ImageMakingWithOpenImage:
         top_k = pred_eval.argsort()[::-1]
         tag = []
         # objects = set()
-        is_black_and_white = 0
         for i in top_k:
-            # if i == 550:  # 是黑白图
-            #     is_black_and_white = 1
             confidence = pred_eval[i]
             if confidence < threshold:
                 break
