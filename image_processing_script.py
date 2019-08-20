@@ -312,7 +312,9 @@ def get_redis_next_data(rds_name):
     if params_data:
         params = json.loads(params_data)
         image_url = params.get("image_url")
-        download_code, image_path = image_tools.download_image(image_url, conf.tmp_image_dir)
+        res_data = image_tools.download_image(image_url, conf.tmp_image_dir)
+        download_code = res_data.get('code')
+        image_path = res_data.get('image_path')
         if download_code == -1:  # 下载失败, 打回列表
             reg_count = params.get('reg_count', 0)
             if reg_count > 100:
@@ -325,11 +327,11 @@ def get_redis_next_data(rds_name):
             time.sleep(2)
             r_object.rpush_content(conf.redis_image_making_list_name, json.dumps(params))
         elif download_code == -2:  # 未知错误
+            img_type = res_data.get('img_type')
             oss_key = "error_image/{}".format(os.path.basename(image_path))
             r_object.lpush_content(
                 conf.redis_image_making_error_name,
-                json.dumps({'error_code': -2, "error_data": params, "oss_key": oss_key})
-            )
+                json.dumps({'error_code': -2, "img_type": img_type, "error_data": params, "oss_key": oss_key}))
             oss_bucket.put_object_from_file(oss_key, image_path)
             util.removefile(image_path)
         else:  # 图片处理成功

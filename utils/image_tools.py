@@ -79,7 +79,7 @@ def download_image(image_url, output_dir):
     try:
         urlretrieve(image_url, image_path)
     except:
-        return -1, None
+        return {'code': -1}
     image_get_type = imghdr.what(image_path)
     image_id, image_type = os.path.splitext(image_name)
     if image_get_type == 'webp':
@@ -87,14 +87,14 @@ def download_image(image_url, output_dir):
         subprocess.check_call(['dwebp', image_path, '-o', new_img_path])
         if os.path.isfile(new_img_path):
             util.removefile(image_path)
-            return 1, new_img_path
+            return {'code': 1, "image_path": new_img_path}
     elif image_get_type in ['jpeg', 'png', 'bmp']:
-        return 1, image_path
+        return {'code': 1, "image_path": image_path}
     else:
         if image_type.lower() == '.heic':
             new_img_path = os.path.join(output_dir, "{}.jpg".format(image_id))
             subprocess.check_call(['heif-convert', image_path, new_img_path])
             if os.path.isfile(new_img_path):
                 util.removefile(image_path)
-                return 1, new_img_path
-    return -2, image_path
+                return {'code': 1, "image_path": new_img_path}
+    return {'code': 1, "image_path": image_path, "img_type": image_get_type}
