@@ -320,46 +320,22 @@ def get_redis_next_data(rds_name):
                     conf.redis_image_making_error_name,
                     json.dumps({'error_type': "download_fail", "error_data": params})
                 )
-                return
+                return None
             params['reg_count'] = reg_count + 1
             time.sleep(2)
             r_object.rpush_content(conf.redis_image_making_list_name, json.dumps(params))
-        elif download_code == -2:  # heic转换失败, 上传到oss
+        elif download_code == -2:  # 未知错误
             oss_key = "error_image/{}".format(os.path.basename(image_path))
             r_object.lpush_content(
                 conf.redis_image_making_error_name,
-                json.dumps({'error_type': "image_convert_fail", "error_data": params, "oss_key": oss_key})
+                json.dumps({'error_code': -2, "error_data": params, "oss_key": oss_key})
             )
             oss_bucket.put_object_from_file(oss_key, image_path)
             util.removefile(image_path)
         else:  # 图片处理成功
             params['image_path'] = image_path
             return params
-    return
-
-
-def get_rds_next_data(rds_name, number):
-    data = []
-    while len(data) < number:
-        params_data = r_object.rpop_content(rds_name)
-        if params_data:
-            params = json.loads(params_data)
-            # user_id = params.get("user_id")
-            # if str(user_id) != '11380 ':
-            #     continue
-            image_url = params.get("image_url")
-            download_code, image_path = image_tools.download_image(image_url, conf.tmp_image_dir)
-            if download_code == -1:  # 下载失败, 打回列表
-                r_object.lpush_content(conf.res_image_making_name, params_data)
-            elif download_code == -2:  # heic转换失败, 上传到oss
-                oss_bucket.put_object_from_file("error_image/{}".format(os.path.basename(image_path)), image_path)
-                util.removefile(image_path)
-            else:  # 图片处理成功
-                params['image_path'] = image_path
-                data.append(params)
-        else:
-            break
-    return data
+    return None
 
 
 class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
@@ -386,7 +362,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 call_res = requests.post(callback_url, json=data_json)
                 if int(call_res.status_code) == 200:
                     call_suc_status = True
-                    self.log_info("call_status: {}".format(call_res.text))
+                    # self.log_info("call_status: {}".format(call_res.text))
                     return call_suc_status
                 else:
                     self.log_error("call_status: {}".format(call_res.text))
@@ -530,11 +506,14 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         params_data = get_redis_next_data(conf.redis_image_making_list_name)
         if params_data is None:
             return
-        time_dl = time.time() - start_time
         image_path = params_data.get('image_path')
         media_id = params_data.get('media_id')
         user_id = params_data.get('user_id')
+        image_url = params_data.get('image_url')
+        self.log_info("{} 开始处理, 还剩{}条数据".format(
+            os.path.basename(image_url), r_object.llen_content(conf.redis_image_making_list_name)))
 
+        time_dl = time.time() - start_time
         # 开始图片打标
         tmp_time = time.time()
         tag = oi_5000_model.get_tag_from_one(image_path)
@@ -554,7 +533,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             'mediaId': media_id,
             'fileId': params_data.get('file_id'),
             'tag': str(tag),
-            'filePath': params_data.get('image_url'),
+            'filePath': image_url,
             'exponent': detection_blur(image),
             'mediaInfo': str(json.dumps({
                 "certificateInfo": is_card,
@@ -578,13 +557,10 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         util.removefile(image_path)
 
         r_object.srem_content(conf.redis_image_making_set_name, media_id)
-        self.log_info("{} total time(还剩{}条): {}, dl time: {}, making time: {}, ic time: {}, face time: {}".format(
-            media_id, r_object.llen_content(conf.redis_image_making_list_name), time.time() - start_time, time_dl,
-            time_making, time_ic, time_face))
+        self.log_info("{} total time: {}, dl time: {}, making time: {}, ic time: {}, face time: {}".format(
+            os.path.basename(image_url), time.time() - start_time, time_dl, time_making, time_ic, time_face))
 
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
-        # fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
-        # fe_detection = face_emotion_interface.FaceEmotionKeras()  # 表情检测模型, 不能跨线程
         logging.info("图片解析线程已启动...")
         while True:
             try:
@@ -678,6 +654,7 @@ class GenerationWonderfulImageThread(threading.Thread):
                     oss_key = params.get("oss_key")
                     image_path = os.path.join(conf.tmp_image_dir, os.path.basename(oss_key))
                     oss_bucket.get_object_to_file(oss_key, image_path)
+                    oss_bucket.delete_object(oss_key)
                 assert os.path.isfile(image_path)
 
                 output_path = os.path.join(conf.tmp_image_dir, "{}_{}.jpg".format(media_id, wonderful_type))
