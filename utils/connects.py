@@ -49,6 +49,9 @@ class ConnectALiYunOSS:
     def put_object(self, key, data):
         self.oss_bucket.put_object(key, data)
 
+    def get_object_to_file(self, key, file_name):
+        self.oss_bucket.get_object_to_file(key, file_name)
+
     def get_object(self, key):
         return self.oss_bucket.get_object(key)
 

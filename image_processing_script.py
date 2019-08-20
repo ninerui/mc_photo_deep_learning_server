@@ -568,14 +568,15 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         call_results_status = self.call_url_func(params_data.get('callback_url'), data_json=data_json)
 
         if is_black_and_white == 1:  # 是黑白图片
+            oss_key = "wonderful_tmp_dir/{}".format(os.path.basename(image_path))
+            oss_bucket.put_object_from_file(oss_key, image_path)
             r_object.lpush_content(conf.redis_wonderful_gen_name, json.dumps({
                 "type": 12,
                 "userId": user_id,
                 "mediaId": media_id,
-                "image_path": image_path
+                "oss_key": oss_key
             }))
-        else:
-            util.removefile(image_path)
+        util.removefile(image_path)
 
         r_object.srem_content(conf.redis_image_making_set_name, media_id)
         self.log_info("{} total time(还剩{}条): {}, dl time: {}, making time: {}, ic time: {}, face time: {}".format(
@@ -675,7 +676,9 @@ class GenerationWonderfulImageThread(threading.Thread):
                 if image_url is not None:
                     image_path = self.download_image(image_url)
                 else:
-                    image_path = params.get("image_path")
+                    oss_key = params.get("oss_key")
+                    image_path = os.path.join(conf.tmp_image_dir, os.path.basename(oss_key))
+                    oss_bucket.get_object_to_file(oss_key, image_path)
                 assert os.path.isfile(image_path)
 
                 output_path = os.path.join(conf.tmp_image_dir, "{}_{}.jpg".format(media_id, wonderful_type))
