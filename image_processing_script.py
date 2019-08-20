@@ -133,7 +133,6 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
                 continue
             # r_object.llen_content(face_user_key)
             user_id = face_user_key.split('-')[1]
-            # self.pr_log(user_id)
             oss_running_file = "face_cluster_data/{}/.running".format(user_id)
             exist = oss_bucket.object_exists(oss_running_file)
             if exist:
@@ -214,13 +213,45 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
                 self.check_restart(9)
 
 
+def get_redis_next_data(rds_name):
+    params_data = r_object.rpop_content(rds_name)
+    if params_data:
+        params = json.loads(params_data)
+        image_url = params.get("image_url")
+        download_code, image_path = image_tools.download_image(image_url, conf.tmp_image_dir)
+        if download_code == -1:  # 下载失败, 打回列表
+            reg_count = params.get('reg_count', 0)
+            if reg_count > 100:
+                r_object.lpush_content(
+                    conf.redis_image_making_error_name,
+                    json.dumps({'error_type': "download_fail", "error_data": params})
+                )
+                return
+            params['reg_count'] = reg_count + 1
+            time.sleep(2)
+            r_object.rpush_content(conf.redis_image_making_list_name, json.dumps(params))
+            # r_object.lpush_content(conf.res_image_making_name, params_data)
+        elif download_code == -2:  # heic转换失败, 上传到oss
+            oss_key = "error_image/{}".format(os.path.basename(image_path))
+            r_object.lpush_content(
+                conf.redis_image_making_error_name,
+                json.dumps({'error_type': "image_convert_fail", "error_data": params, "oss_key": oss_key})
+            )
+            oss_bucket.put_object_from_file(oss_key, image_path)
+            util.removefile(image_path)
+        else:  # 图片处理成功
+            params['image_path'] = image_path
+            return params
+    return
+
+
 def get_rds_next_data(rds_name, number):
     data = []
     while len(data) < number:
         params_data = r_object.rpop_content(rds_name)
         if params_data:
             params = json.loads(params_data)
-            user_id = params.get("user_id")
+            # user_id = params.get("user_id")
             # if str(user_id) != '11380 ':
             #     continue
             image_url = params.get("image_url")
@@ -402,57 +433,93 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
 
     def main_func(self):
         start_time = time.time()
-        params_data = get_rds_next_data(conf.res_image_making_name, 3)
-        if len(params_data) == 0:
+        # params_data = get_rds_next_data(conf.res_image_making_name, 3)
+        params_data = get_redis_next_data(conf.redis_image_making_list_name)
+        if params_data is None:
             return
-        self.log_info("{} 张图片下载及转换耗时: {}, 还剩{}条".format(
-            len(params_data), time.time() - start_time, r_object.llen_content(conf.res_image_making_name)))
-        image_path_list = [param.get('image_path') for param in params_data]
+        image_path = params_data.get('image_path')
+        media_id = params_data.get('media_id')
+        user_id = params_data.get('user_id')
+        self.log_info("{} 下载及转换耗时: {}, 还剩{}条数据".format(
+            media_id, time.time() - start_time, r_object.llen_content(conf.res_image_making_name)))
+
+        # image_path_list = [param.get('image_path') for param in params_data]
         # 开始图片打标
         tmp_time = time.time()
-        tags_list = oi_5000_model.get_tag(image_path_list)
-        self.log_info("{} 张图片打标耗时: {}".format(len(params_data), time.time() - tmp_time))
+        # tags_list = oi_5000_model.get_tag(image_path_list)
+        tag = oi_5000_model.get_tag_from_one(image_path)
+        self.log_info("{} 打标耗时: {}".format(media_id, time.time() - tmp_time))
         # 读取图片
-        image_list = [cv2.imread(img_path) for img_path in image_path_list]
+        image = cv2.imread(image_path)
+        # image_list = [cv2.imread(img_path) for img_path in image_path_list]
         # 图片证件识别
         tmp_time = time.time()
-        is_card_list = is_idcard_model.get_res(image_list)
-        self.log_info("{} 张图片证件识别耗时: {}".format(len(params_data), time.time() - tmp_time))
+        is_card = is_idcard_model.get_res_from_one(image)
+        self.log_info("{} 证件识别耗时: {}".format(media_id, time.time() - tmp_time))
 
-        for idx in range(len(params_data)):
-            tmp_data = params_data[idx]
-            face_count = self.parser_face(tmp_data.get('user_id'), tmp_data.get('media_id'), image_list[idx])
-            # 图片是否需要上色判断
-            b, g, r = cv2.split(image_list[idx])
-            is_black_and_white = 1 if ((b == g).all() and (b == r).all()) else 0
-            data_json = {
-                'mediaId': tmp_data.get('media_id'),
-                'fileId': tmp_data.get('file_id'),
-                'tag': str(tags_list[idx].get("tags")),
-                'filePath': tmp_data.get('image_url'),
-                'exponent': detection_blur(image_list[idx]),
-                'mediaInfo': str(json.dumps({
-                    "certificateInfo": is_card_list[idx],
-                    # "thingsClass": tags_list[idx].get("classes")
-                }, ensure_ascii=False)),
-                # "isBlackAndWhite": tags_list[idx].get("is_black_and_white"),
-                "isBlackAndWhite": is_black_and_white,
-                "isLocalColor": self.get_is_local_color(image_list[idx]),
-                'existFace': min(face_count, 127),
-            }
-            call_results_status = self.call_url_func(params_data[idx].get('callback_url'), data_json=data_json)
+        face_count = self.parser_face(user_id, media_id, image)
+        b, g, r = cv2.split(image)
+        is_black_and_white = 1 if ((b == g).all() and (b == r).all()) else 0
+        data_json = {
+            'mediaId': media_id,
+            'fileId': params_data.get('file_id'),
+            'tag': str(tag),
+            'filePath': params_data.get('image_url'),
+            'exponent': detection_blur(image),
+            'mediaInfo': str(json.dumps({
+                "certificateInfo": is_card,
+            }, ensure_ascii=False)),
+            # "isBlackAndWhite": tags_list[idx].get("is_black_and_white"),
+            "isBlackAndWhite": is_black_and_white,
+            "isLocalColor": self.get_is_local_color(image),
+            'existFace': min(face_count, 127),
+        }
+        call_results_status = self.call_url_func(params_data.get('callback_url'), data_json=data_json)
 
-            if is_black_and_white == 1:  # 是黑白图片
-                r_object.lpush_content(conf.res_wonderful_gen_name, json.dumps({
-                    "type": 12,
-                    "userId": tmp_data.get('user_id'),
-                    "mediaId": tmp_data.get('media_id'),
-                    "image_path": tmp_data.get('image_path')
-                }))
-            else:
-                util.removefile(tmp_data.get('image_path'))
+        if is_black_and_white == 1:  # 是黑白图片
+            r_object.lpush_content(conf.redis_wonderful_gen_name, json.dumps({
+                "type": 12,
+                "userId": user_id,
+                "mediaId": media_id,
+                "image_path": image_path
+            }))
+        else:
+            util.removefile(image_path)
 
-        self.log_info("{}处理耗时: {}".format(len(params_data), time.time() - tmp_time))
+        # for idx in range(len(params_data)):
+        #     tmp_data = params_data[idx]
+        #     face_count = self.parser_face(tmp_data.get('user_id'), tmp_data.get('media_id'), image_list[idx])
+        #     # 图片是否需要上色判断
+        #     b, g, r = cv2.split(image_list[idx])
+        #     is_black_and_white = 1 if ((b == g).all() and (b == r).all()) else 0
+        #     data_json = {
+        #         'mediaId': tmp_data.get('media_id'),
+        #         'fileId': tmp_data.get('file_id'),
+        #         'tag': str(tags_list[idx].get("tags")),
+        #         'filePath': tmp_data.get('image_url'),
+        #         'exponent': detection_blur(image_list[idx]),
+        #         'mediaInfo': str(json.dumps({
+        #             "certificateInfo": is_card_list[idx],
+        #             # "thingsClass": tags_list[idx].get("classes")
+        #         }, ensure_ascii=False)),
+        #         # "isBlackAndWhite": tags_list[idx].get("is_black_and_white"),
+        #         "isBlackAndWhite": is_black_and_white,
+        #         "isLocalColor": self.get_is_local_color(image_list[idx]),
+        #         'existFace': min(face_count, 127),
+        #     }
+        #     call_results_status = self.call_url_func(params_data[idx].get('callback_url'), data_json=data_json)
+        #
+        #     if is_black_and_white == 1:  # 是黑白图片
+        #         r_object.lpush_content(conf.res_wonderful_gen_name, json.dumps({
+        #             "type": 12,
+        #             "userId": tmp_data.get('user_id'),
+        #             "mediaId": tmp_data.get('media_id'),
+        #             "image_path": tmp_data.get('image_path')
+        #         }))
+        #     else:
+        #         util.removefile(tmp_data.get('image_path'))
+
+        self.log_info("{} 处理耗时: {}".format(media_id, time.time() - tmp_time))
 
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
         # fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()

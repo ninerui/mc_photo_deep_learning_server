@@ -13,8 +13,8 @@ log_dir = './log'
 tmp_image_dir = '../tmp_image_dir'
 
 image_process_thread_num = 3
-face_cluster_thread_num = 1
-wonderful_gen_thread_num = 1
+face_cluster_thread_num = 0
+wonderful_gen_thread_num = 0
 
 # 模块开关控制
 image_making_switch = True
@@ -29,9 +29,12 @@ redis_face_info_key_list = "mc_face_info_key_list"
 
 redis_image_making_list_name = "mc_image_making_list"
 redis_image_making_set_name = "mc_image_making_set"
+redis_image_making_error_name = "mc_image_making_error"
+redis_wonderful_gen_name = "mc_wonderful_gen_list"
+
 res_face_cluster_name = "mc_face_cluster_list"
 res_image_making_name = "mc_image_making_list"
-res_wonderful_gen_name = "mc_wonderful_gen_list"
+
 
 handle_result_url = "http://172.16.181.135:8081/ai/updateFaceId"
 wonderful_callback_url = 'http://172.16.181.135:8081/ai/receiveWonderfulData'

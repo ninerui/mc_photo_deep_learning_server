@@ -22,6 +22,9 @@ class ConnectRedis:
     def rpop_content(self, key):
         return self.r_object.rpop(key)
 
+    def rpush_content(self, key, value):
+        self.r_object.rpush(key, value)
+
     def lpush_content(self, key, value):
         self.r_object.lpush(key, value)
 

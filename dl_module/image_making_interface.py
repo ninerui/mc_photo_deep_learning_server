@@ -87,7 +87,20 @@ class ImageMakingWithOpenImage:
         # return {"tags": tag, "is_black_and_white": is_black_and_white, "classes": list(objects)}
         return {"tags": tag}
 
-    def get_tag(self, img_path, threshold=0.8):
+    def get_tag_from_one(self, img_path, threshold=0.8):
+        predictions_eval = self.oi_5000_sess.run(
+            self.oi_5000_prob,
+            feed_dict={self.oi_5000_input: [tf.gfile.FastGFile(img_path, 'rb').read()]})
+        top_k = predictions_eval.argsort()[::-1]
+        tag = []
+        for i in top_k:
+            confidence = predictions_eval[i]
+            if confidence < threshold:
+                break
+            tag.append(i + 1)
+        return tag
+
+    def get_tag_from_list(self, img_path, threshold=0.8):
         input_data = [tf.gfile.FastGFile(i, 'rb').read() for i in img_path]
         predictions_eval = self.oi_5000_sess.run(self.oi_5000_prob, feed_dict={self.oi_5000_input: input_data})
         if len(img_path) == 1:
