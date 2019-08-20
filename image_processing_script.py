@@ -324,7 +324,6 @@ def get_redis_next_data(rds_name):
             params['reg_count'] = reg_count + 1
             time.sleep(2)
             r_object.rpush_content(conf.redis_image_making_list_name, json.dumps(params))
-            # r_object.lpush_content(conf.res_image_making_name, params_data)
         elif download_code == -2:  # heic转换失败, 上传到oss
             oss_key = "error_image/{}".format(os.path.basename(image_path))
             r_object.lpush_content(

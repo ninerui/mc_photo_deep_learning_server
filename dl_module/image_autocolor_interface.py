@@ -28,7 +28,7 @@ class ImageAutoColor:
         scale = min(1980. / img_max_pix, 1.)
 
         img_rgb = caffe.io.resize_image(
-            img_rgb, (int(img_rgb.shape[0] * scale), int(img_rgb.shape[1] * scale)), interp_order=3)
+            img_rgb, (int(img_rgb.shape[0] * scale), int(img_rgb.shape[1] * scale)))
 
         img_lab = color.rgb2lab(img_rgb)  # convert image to lab color space
         img_l = img_lab[:, :, 0]  # pull out L channel
