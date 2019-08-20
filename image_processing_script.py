@@ -518,7 +518,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             #     if res > 1:
             #         res = 0
             #         break
-            self.log_info("目标检测耗时: {}".format(time.time() - tmp_time))
+            # self.log_info("目标检测耗时: {}".format(time.time() - tmp_time))
         except Exception as e:
             self.log_exception(e)
         finally:
@@ -579,7 +579,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
 
         r_object.srem_content(conf.redis_image_making_set_name, media_id)
         self.log_info("{} total time(还剩{}条): {}, dl time: {}, making time: {}, ic time: {}, face time: {}".format(
-            media_id, time.time() - start_time, r_object.llen_content(conf.redis_image_making_list_name), time_dl,
+            media_id, r_object.llen_content(conf.redis_image_making_list_name), time.time() - start_time, time_dl,
             time_making, time_ic, time_face))
 
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
