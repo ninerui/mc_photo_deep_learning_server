@@ -655,8 +655,8 @@ class GenerationWonderfulImageThread(threading.Thread):
         self.log_info("精彩生成线程已启动...")
         while True:
             try:
-                params_count = r_object.llen_content(conf.res_wonderful_gen_name)
-                params = r_object.rpop_content(conf.res_wonderful_gen_name)
+                params_count = r_object.llen_content(conf.redis_wonderful_gen_name)
+                params = r_object.rpop_content(conf.redis_wonderful_gen_name)
                 if not params:
                     self.check_restart(params_count)
                     continue
