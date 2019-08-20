@@ -2,18 +2,19 @@ import os
 import time
 import json
 import pickle
-import shutil
+# import shutil
 import logging
 import threading
-import collections
+# import collections
 from urllib.request import urlretrieve
 
 import cv2
 import imageio
 import requests
 import numpy as np
-from tensorflow import keras
-from PIL import Image, ImageFilter, ImageColor, ImageFile
+# from tensorflow import keras
+from PIL import Image, ImageFile
+from PIL import ImageFilter, ImageColor
 
 import conf
 from utils import connects, util, image_tools
@@ -122,24 +123,46 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
             raise SystemExit
         time.sleep(9 / max(1, params_count))
 
-    def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
-        fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
-        fe_detection = face_emotion_interface.FaceEmotionKeras()  # 表情检测模型, 不能跨线程
-        self.log_info("人脸聚类线程已启动...")
-        while True:
-            face_user_key = r_object.rpop_content(conf.redis_face_info_key_list)
-            if not face_user_key:
-                check_restart(1)
-                continue
-            # r_object.llen_content(face_user_key)
-            user_id = face_user_key.split('-')[1]
-            oss_running_file = "face_cluster_data/{}/.running".format(user_id)
-            exist = oss_bucket.object_exists(oss_running_file)
-            if exist:
-                check_restart(1)
-                continue
-            oss_bucket.put_object(oss_running_file, 'running')
-            try:
+    def main_func(self, fe_detection, fr_arcface):
+        face_user_key = r_object.rpop_content(conf.redis_face_info_key_list)
+        if not face_user_key:
+            return
+        user_id = face_user_key.split('-')[1]
+        oss_running_file = "face_cluster_data/{}/.running".format(user_id)
+        exist = oss_bucket.object_exists(oss_running_file)
+        if exist:
+            if r_object.llen_content(face_user_key) > 0:
+                r_object.lpush_content(conf.redis_face_info_key_list, face_user_key)
+            return
+        oss_bucket.put_object(oss_running_file, 'running')
+        try:
+            face_data = []
+            success_image_set = set()
+            while True:
+                data_ = r_object.rpop_content(face_user_key)
+                if not data_:
+                    r_object.srem_content(conf.redis_face_info_key_set, face_user_key)
+                    break
+                # if str(user_id) != '11380 ':
+                #     continue
+                data_ = json.loads(data_)
+                media_id = data_.get('media_id', None)
+
+                warped = np.array(data_.get('face_data'), dtype=np.float32)
+                emotion_label_arg = fe_detection.detection_emotion(warped)
+                warped = np.transpose(warped, (2, 0, 1))
+                emb = fr_arcface.get_feature(warped)
+                data_['face_feature'] = np.array(emb).tolist()
+                data_['emotionStr'] = emotion_label_arg
+
+                face_data.append({
+                    'face_feature': np.array(emb).tolist(),
+                    'face_id': data_.get('face_id'),
+                    "face_box": data_.get('face_box'),
+                    'emotionStr': emotion_label_arg,
+                })
+                success_image_set.add(media_id)
+            if len(face_data) > 0:
                 oss_suc_img_list_file = "face_cluster_data/{}/suc_img_list.pkl".format(user_id)
                 oss_bucket.get_set_object(oss_suc_img_list_file, set())
                 oss_face_id_with_label_file = "face_cluster_data/{}/face_id_with_label.pkl".format(user_id)
@@ -151,66 +174,137 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
                 face_id_label_dict = pickle.loads(oss_bucket.get_object(oss_face_id_with_label_file).read())
                 old_data = pickle.loads(oss_bucket.get_object(oss_face_data_file).read())
 
-                face_data = []
-                success_image_set = set()
-                while True:
-                    data_ = r_object.rpop_content(face_user_key)
-                    if not data_:
-                        time.sleep(2)  # 暂停2s, 没有新人脸便去聚类
-                        data_ = r_object.rpop_content(face_user_key)
-                        if not data_:
-                            break
-                    # if str(user_id) != '11380 ':
-                    #     continue
-                    data_ = json.loads(data_)
-                    media_id = data_.get('face_id', "").split('_')[0]
+                face_data = old_data + face_data
+                start_cluster_time = time.time()
+                call_res_dict, face_id_label_dict = face_cluster_interface.cluster_face_func(
+                    face_data, user_id, face_id_label_dict)
+                logging.info('用户ID: {}, 聚类人脸耗时: {}'.format(user_id, time.time() - start_cluster_time))
 
-                    warped = np.array(data_.get('face_data'), dtype=np.float32)
-                    emotion_label_arg = fe_detection.detection_emotion(warped)
-                    warped = np.transpose(warped, (2, 0, 1))
-                    emb = fr_arcface.get_feature(warped)
-                    data_['face_feature'] = np.array(emb).tolist()
-                    data_['emotionStr'] = emotion_label_arg
+                # 回调下载成功列表
+                logging.info(
+                    "用户ID: {}, 开始回调 {} 结果, 共 {} 条数据...".format(
+                        user_id, conf.handle_result_url, len(call_res_dict)))
+                call_results_status = call_url_func(user_id, conf.handle_result_url, data_json={
+                    'userId': user_id,
+                    'content': call_res_dict
+                })
+                if not call_results_status:
+                    # 回调失败, 保存结果
+                    logging.error("用户ID: {}, 结果列表回调失败, 保存结果至oss!".format(user_id))
+                    oss_bucket.put_object(
+                        "face_cluster_call_error_data/{}/call_result_error.pkl".format(user_id),
+                        pickle.dumps({
+                            "handle_result_url": conf.handle_result_url,
+                            "user_id": user_id,
+                            "call_res_dict": call_res_dict,
+                        }))
+                oss_bucket.put_object(oss_face_id_with_label_file, pickle.dumps(face_id_label_dict))
+                oss_bucket.put_object(oss_face_data_file, pickle.dumps(face_data))
+                oss_bucket.put_object(oss_suc_img_list_file, pickle.dumps(success_image_set | suc_parser_img_set))
+        except Exception as e:
+            self.log_exception(e)
+        finally:
+            exist = oss_bucket.object_exists(oss_running_file)
+            if exist:
+                oss_bucket.delete_object(oss_running_file)
+            return
 
-                    face_data.append(data_)
-                    success_image_set.add(media_id)
-                if len(face_data) != 0:
-                    face_data = old_data + face_data
-                    start_cluster_time = time.time()
-                    call_res_dict, face_id_label_dict = face_cluster_interface.cluster_face_func(
-                        face_data, user_id, face_id_label_dict)
-                    logging.info('用户ID: {}, 聚类人脸耗时: {}'.format(user_id, time.time() - start_cluster_time))
-
-                    # 回调下载成功列表
-                    logging.info(
-                        "用户ID: {}, 开始回调 {} 结果, 共 {} 条数据...".format(
-                            user_id, conf.handle_result_url, len(call_res_dict)))
-                    call_results_status = call_url_func(user_id, conf.handle_result_url, data_json={
-                        'userId': user_id,
-                        'content': call_res_dict
-                    })
-                    if not call_results_status:
-                        # 回调失败, 保存结果
-                        logging.error("用户ID: {}, 结果列表回调失败, 保存结果至oss!".format(user_id))
-                        oss_bucket.put_object(
-                            "face_cluster_call_error_data/{}/call_result_error.pkl".format(user_id),
-                            pickle.dumps({
-                                "handle_result_url": conf.handle_result_url,
-                                "user_id": user_id,
-                                "call_res_dict": call_res_dict,
-                            }))
-                    oss_bucket.put_object(oss_face_id_with_label_file, pickle.dumps(face_id_label_dict))
-                    oss_bucket.put_object(oss_face_data_file, pickle.dumps(face_data))
-                    oss_bucket.put_object(oss_suc_img_list_file,
-                                          pickle.dumps(success_image_set | suc_parser_img_set))
+    def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
+        fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
+        fe_detection = face_emotion_interface.FaceEmotionKeras()  # 表情检测模型, 不能跨线程
+        self.log_info("人脸聚类线程已启动...")
+        while True:
+            try:
+                self.main_func(fe_detection, fr_arcface)
             except Exception as e:
-                self.log_exception(e)
+                logging.exception("人脸聚类处理失败\n{}".format(e))
             finally:
-                exist = oss_bucket.object_exists(oss_running_file)
-                if exist:
-                    oss_bucket.delete_object(oss_running_file)
-                r_object.srem_content(conf.redis_face_info_key_set, face_user_key)
-                self.check_restart(9)
+                check_restart(1)
+
+            # face_user_key = r_object.rpop_content(conf.redis_face_info_key_list)
+            # if not face_user_key:
+            #     check_restart(1)
+            #     continue
+            # # r_object.llen_content(face_user_key)
+            # user_id = face_user_key.split('-')[1]
+            # oss_running_file = "face_cluster_data/{}/.running".format(user_id)
+            # exist = oss_bucket.object_exists(oss_running_file)
+            # if exist:
+            #     check_restart(1)
+            #     continue
+            # oss_bucket.put_object(oss_running_file, 'running')
+            # try:
+            #     oss_suc_img_list_file = "face_cluster_data/{}/suc_img_list.pkl".format(user_id)
+            #     oss_bucket.get_set_object(oss_suc_img_list_file, set())
+            #     oss_face_id_with_label_file = "face_cluster_data/{}/face_id_with_label.pkl".format(user_id)
+            #     oss_bucket.get_set_object(oss_face_id_with_label_file, dict())
+            #     oss_face_data_file = "face_cluster_data/{}/face_data.pkl".format(user_id)
+            #     oss_bucket.get_set_object(oss_face_data_file, list())
+            #
+            #     suc_parser_img_set = pickle.loads(oss_bucket.get_object(oss_suc_img_list_file).read())
+            #     face_id_label_dict = pickle.loads(oss_bucket.get_object(oss_face_id_with_label_file).read())
+            #     old_data = pickle.loads(oss_bucket.get_object(oss_face_data_file).read())
+            #
+            #     face_data = []
+            #     success_image_set = set()
+            #     while True:
+            #         data_ = r_object.rpop_content(face_user_key)
+            #         if not data_:
+            #             time.sleep(2)  # 暂停2s, 没有新人脸便去聚类
+            #             data_ = r_object.rpop_content(face_user_key)
+            #             if not data_:
+            #                 break
+            #         # if str(user_id) != '11380 ':
+            #         #     continue
+            #         data_ = json.loads(data_)
+            #         media_id = data_.get('face_id', "").split('_')[0]
+            #
+            #         warped = np.array(data_.get('face_data'), dtype=np.float32)
+            #         emotion_label_arg = fe_detection.detection_emotion(warped)
+            #         warped = np.transpose(warped, (2, 0, 1))
+            #         emb = fr_arcface.get_feature(warped)
+            #         data_['face_feature'] = np.array(emb).tolist()
+            #         data_['emotionStr'] = emotion_label_arg
+            #
+            #         face_data.append(data_)
+            #         success_image_set.add(media_id)
+            #     if len(face_data) != 0:
+            #         face_data = old_data + face_data
+            #         start_cluster_time = time.time()
+            #         call_res_dict, face_id_label_dict = face_cluster_interface.cluster_face_func(
+            #             face_data, user_id, face_id_label_dict)
+            #         logging.info('用户ID: {}, 聚类人脸耗时: {}'.format(user_id, time.time() - start_cluster_time))
+            #
+            #         # 回调下载成功列表
+            #         logging.info(
+            #             "用户ID: {}, 开始回调 {} 结果, 共 {} 条数据...".format(
+            #                 user_id, conf.handle_result_url, len(call_res_dict)))
+            #         call_results_status = call_url_func(user_id, conf.handle_result_url, data_json={
+            #             'userId': user_id,
+            #             'content': call_res_dict
+            #         })
+            #         if not call_results_status:
+            #             # 回调失败, 保存结果
+            #             logging.error("用户ID: {}, 结果列表回调失败, 保存结果至oss!".format(user_id))
+            #             oss_bucket.put_object(
+            #                 "face_cluster_call_error_data/{}/call_result_error.pkl".format(user_id),
+            #                 pickle.dumps({
+            #                     "handle_result_url": conf.handle_result_url,
+            #                     "user_id": user_id,
+            #                     "call_res_dict": call_res_dict,
+            #                 }))
+            #         oss_bucket.put_object(oss_face_id_with_label_file, pickle.dumps(face_id_label_dict))
+            #         oss_bucket.put_object(oss_face_data_file, pickle.dumps(face_data))
+            #         oss_bucket.put_object(oss_suc_img_list_file,
+            #                               pickle.dumps(success_image_set | suc_parser_img_set))
+            # except Exception as e:
+            #     self.log_exception(e)
+            # finally:
+            #     exist = oss_bucket.object_exists(oss_running_file)
+            #     if exist:
+            #         oss_bucket.delete_object(oss_running_file)
+            #     r_object.srem_content(conf.redis_face_info_key_set, face_user_key)
+            #     self.check_restart(9)
 
 
 def get_redis_next_data(rds_name):
@@ -309,7 +403,6 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
     def parser_face(self, user_id, media_id, image):
         face_count = 0
         try:
-            tmp_time = time.time()
             image_np = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             im_height, im_width = image.shape[:2]
             f = min((4096. / max(image.shape[0], image.shape[1])), 1.0)
@@ -371,6 +464,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                     r_object.lpush_content(conf.redis_face_info_key_list, redis_user_key)
 
                 r_object.lpush_content(redis_user_key, json.dumps({
+                    "media_id": media_id,
                     "face_id": "{}_{}".format(media_id, idx),
                     "face_box": [left, top, right - left, bottom - top],
                     # "user_id": user_id,
@@ -393,9 +487,9 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 #     "emotionStr": emotion_label_arg,
                 # }))
                 # r_object.lpush_content(conf.redis_face_info_key_list, redis_user_key)
-            self.log_info("{}人脸耗时: {}".format(media_id, time.time() - tmp_time))
+            # self.log_info("{}人脸耗时: {}".format(media_id, time.time() - tmp_time))
         except Exception as e:
-            self.log_exception("{}转换失败\n{}".format(media_id, e))
+            self.log_exception("{}上传失败\n{}".format(media_id, e))
         finally:
             return 0
 
@@ -441,24 +535,17 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         image_path = params_data.get('image_path')
         media_id = params_data.get('media_id')
         user_id = params_data.get('user_id')
-        # self.log_info("{} 下载及转换耗时: {}, 还剩{}条数据".format(
-        #     media_id, time.time() - start_time, r_object.llen_content(conf.res_image_making_name)))
 
-        # image_path_list = [param.get('image_path') for param in params_data]
         # 开始图片打标
         tmp_time = time.time()
-        # tags_list = oi_5000_model.get_tag(image_path_list)
         tag = oi_5000_model.get_tag_from_one(image_path)
         time_making = time.time() - tmp_time
-        # self.log_info("{} 打标耗时: {}".format(media_id, time.time() - tmp_time))
         # 读取图片
         image = cv2.imread(image_path)
-        # image_list = [cv2.imread(img_path) for img_path in image_path_list]
         # 图片证件识别
         tmp_time = time.time()
         is_card = is_idcard_model.get_res_from_one(image)
         time_ic = time.time() - tmp_time
-        # self.log_info("{} 证件识别耗时: {}".format(media_id, time.time() - tmp_time))
         tmp_time = time.time()
         face_count = self.parser_face(user_id, media_id, image)
         time_face = time.time() - tmp_time
@@ -490,41 +577,10 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         else:
             util.removefile(image_path)
 
-        # for idx in range(len(params_data)):
-        #     tmp_data = params_data[idx]
-        #     face_count = self.parser_face(tmp_data.get('user_id'), tmp_data.get('media_id'), image_list[idx])
-        #     # 图片是否需要上色判断
-        #     b, g, r = cv2.split(image_list[idx])
-        #     is_black_and_white = 1 if ((b == g).all() and (b == r).all()) else 0
-        #     data_json = {
-        #         'mediaId': tmp_data.get('media_id'),
-        #         'fileId': tmp_data.get('file_id'),
-        #         'tag': str(tags_list[idx].get("tags")),
-        #         'filePath': tmp_data.get('image_url'),
-        #         'exponent': detection_blur(image_list[idx]),
-        #         'mediaInfo': str(json.dumps({
-        #             "certificateInfo": is_card_list[idx],
-        #             # "thingsClass": tags_list[idx].get("classes")
-        #         }, ensure_ascii=False)),
-        #         # "isBlackAndWhite": tags_list[idx].get("is_black_and_white"),
-        #         "isBlackAndWhite": is_black_and_white,
-        #         "isLocalColor": self.get_is_local_color(image_list[idx]),
-        #         'existFace': min(face_count, 127),
-        #     }
-        #     call_results_status = self.call_url_func(params_data[idx].get('callback_url'), data_json=data_json)
-        #
-        #     if is_black_and_white == 1:  # 是黑白图片
-        #         r_object.lpush_content(conf.res_wonderful_gen_name, json.dumps({
-        #             "type": 12,
-        #             "userId": tmp_data.get('user_id'),
-        #             "mediaId": tmp_data.get('media_id'),
-        #             "image_path": tmp_data.get('image_path')
-        #         }))
-        #     else:
-        #         util.removefile(tmp_data.get('image_path'))
-
-        self.log_info("{} total time: {}, dl time: {}, making time: {}, ic time: {}, face time: {}".format(
-            media_id, time.time() - start_time, time_dl, time_making, time_ic, time_face))
+        r_object.srem_content(conf.redis_image_making_set_name, media_id)
+        self.log_info("{} total time(还剩{}条): {}, dl time: {}, making time: {}, ic time: {}, face time: {}".format(
+            media_id, time.time() - start_time, r_object.llen_content(conf.res_image_making_name), time_dl, time_making,
+            time_ic, time_face))
 
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
         # fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
@@ -684,25 +740,24 @@ if __name__ == '__main__':
     r_object.set_content(local_ip, "0")
 
     logging.info("加载全局模型...")
-    if conf.image_making_switch:
+    if conf.image_process_thread_num > 0:
         oi_5000_model = image_making_interface.ImageMakingWithOpenImage()
-    if conf.face_cluster_switch:
         fd_ssd_detection = face_detection_interface.FaceDetectionWithSSDMobilenet()
         fd_mtcnn_detection = face_detection_interface.FaceDetectionWithMtcnnTF(steps_threshold=[0.6, 0.7, 0.8])
-    if conf.id_classify_switch:
         is_idcard_model = zhouwen_image_card_classify_interface.IDCardClassify()
 
+    if conf.wonderful_gen_thread_num > 0:
+        autocolor_model = ImageAutoColor()
+        image_enhancement_model = image_enhancement_interface.AIChallengeWithDPEDSRCNN()
+        pose_estimator_model = TfPoseEstimator('./models/pose_estimator_models.pb', target_size=(432, 368))
+        create_local_color = ImageLocalColor()
     # fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
 
     # colorizer_model = get_image_colorizer(artistic=True)
     # object_mask_detection_model = ObjectMaskDetection()
-    autocolor_model = ImageAutoColor()
-    image_enhancement_model = image_enhancement_interface.AIChallengeWithDPEDSRCNN()
-    # od_model = object_detection_interface.ObjectDetectionWithSSDMobilenetV2()
-    pose_estimator_model = TfPoseEstimator('./models/pose_estimator_models.pb', target_size=(432, 368))
-    create_local_color = ImageLocalColor()
 
-    # logging.info("即将开启的线程数: {}".format(conf.thread_num))
+    # od_model = object_detection_interface.ObjectDetectionWithSSDMobilenetV2()
+
     # 创建线程并开始图片打标线程
     for i in range(conf.image_process_thread_num):
         ImageProcessingThread("Thread_{}".format(i)).start()
