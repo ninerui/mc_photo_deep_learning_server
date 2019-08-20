@@ -30,8 +30,7 @@ from dl_module.human_pose_estimation_interface import TfPoseEstimator
 from dl_module.zhouwen_detect_blur import detection_blur
 from dl_module.image_local_color_interface import ImageLocalColor
 from dl_module.image_autocolor_interface import ImageAutoColor
-
-# from dl_module import object_detection_interface
+from dl_module import object_detection_interface
 
 try:
     import absl.logging
@@ -221,7 +220,8 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
             try:
                 self.main_func(fe_detection, fr_arcface)
             except Exception as e:
-                logging.exception("人脸聚类处理失败\n{}".format(e))
+                self.log_exception(e)
+                continue
             finally:
                 check_restart(1)
 
@@ -398,8 +398,22 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
 
     def get_is_local_color(self, image):
         res = 0
+        tiaojian = False
         try:
-            tmp_time = time.time()
+            f = min((4096. / max(image.shape[0], image.shape[1])), 1.0)
+            image_r = cv2.resize(image, (int(image.shape[1] * f), int(image.shape[0] * f)))
+            image_np_expanded = np.expand_dims(image_r, axis=0)
+            od_boxes, od_scores, od_classes = object_detection_model.detect_object(image_np_expanded)
+            for idx in range(od_boxes[0].shape[0]):
+                if od_scores[0][idx] < 0.7:
+                    break
+                if int(od_classes[0][idx]) != 1:
+                    continue
+                res += 1
+                ymin, xmin, ymax, xmax = od_boxes[0][idx]
+                if (abs((xmax - xmin) / 2. + xmin - 0.5) < 0.1) and (ymin < 0.4) and (ymax > 0.6):
+                    tiaojian = True
+
             # scale = 600. / max(image.shape)
             # image = cv2.resize(image, (int(image.shape[1] * scale), int(image.shape[0] * scale)))
             # humans = pose_estimator_model.inference(image, resize_to_default=False, upsample_size=8.0)
@@ -419,7 +433,10 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         except Exception as e:
             self.log_exception(e)
         finally:
-            return res
+            if res == 1 and tiaojian:
+                return 1
+            else:
+                return 0
 
     def main_func(self):
         start_time = time.time()
@@ -448,6 +465,10 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         tmp_time = time.time()
         face_count = self.parser_face(user_id, media_id, image)
         time_face = time.time() - tmp_time
+        tmp_time = time.time()
+        is_local_color = self.get_is_local_color(image)
+        time_od = time.time() - tmp_time
+
         b, g, r = cv2.split(image)
         is_black_and_white = 1 if ((b == g).all() and (b == r).all()) else 0
         data_json = {
@@ -461,7 +482,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             }, ensure_ascii=False)),
             # "isBlackAndWhite": tags_list[idx].get("is_black_and_white"),
             "isBlackAndWhite": is_black_and_white,
-            "isLocalColor": self.get_is_local_color(image),
+            "isLocalColor": is_local_color,
             'existFace': min(face_count, 127),
         }
         call_results_status = self.call_url_func(params_data.get('callback_url'), data_json=data_json)
@@ -478,8 +499,8 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         util.removefile(image_path)
 
         r_object.srem_content(conf.redis_image_making_set_name, media_id)
-        self.log_info("{} total time: {}, dl time: {}, making time: {}, ic time: {}, face time: {}".format(
-            os.path.basename(image_url), time.time() - start_time, time_dl, time_making, time_ic, time_face))
+        self.log_info("{} total time: {}, dl time: {}, making time: {}, ic time: {}, face time: {}, od_time: {}".format(
+            os.path.basename(image_url), time.time() - start_time, time_dl, time_making, time_ic, time_face, time_od))
 
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
         logging.info("图片解析线程已启动...")
@@ -487,7 +508,8 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             try:
                 self.main_func()
             except Exception as e:
-                logging.exception("处理失败\n{}".format(e))
+                self.log_exception(e)
+                continue
             finally:
                 check_restart(1)
 
@@ -645,6 +667,7 @@ if __name__ == '__main__':
         fd_ssd_detection = face_detection_interface.FaceDetectionWithSSDMobilenet()
         fd_mtcnn_detection = face_detection_interface.FaceDetectionWithMtcnnTF(steps_threshold=[0.6, 0.7, 0.8])
         is_idcard_model = zhouwen_image_card_classify_interface.IDCardClassify()
+        object_detection_model = object_detection_interface.ObjectDetectionWithSSDMobilenetV2()
 
     if conf.wonderful_gen_thread_num > 0:
         autocolor_model = ImageAutoColor()
