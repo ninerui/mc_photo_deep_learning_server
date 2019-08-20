@@ -437,27 +437,31 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         params_data = get_redis_next_data(conf.redis_image_making_list_name)
         if params_data is None:
             return
+        time_dl = time.time() - start_time
         image_path = params_data.get('image_path')
         media_id = params_data.get('media_id')
         user_id = params_data.get('user_id')
-        self.log_info("{} 下载及转换耗时: {}, 还剩{}条数据".format(
-            media_id, time.time() - start_time, r_object.llen_content(conf.res_image_making_name)))
+        # self.log_info("{} 下载及转换耗时: {}, 还剩{}条数据".format(
+        #     media_id, time.time() - start_time, r_object.llen_content(conf.res_image_making_name)))
 
         # image_path_list = [param.get('image_path') for param in params_data]
         # 开始图片打标
         tmp_time = time.time()
         # tags_list = oi_5000_model.get_tag(image_path_list)
         tag = oi_5000_model.get_tag_from_one(image_path)
-        self.log_info("{} 打标耗时: {}".format(media_id, time.time() - tmp_time))
+        time_making = time.time() - tmp_time
+        # self.log_info("{} 打标耗时: {}".format(media_id, time.time() - tmp_time))
         # 读取图片
         image = cv2.imread(image_path)
         # image_list = [cv2.imread(img_path) for img_path in image_path_list]
         # 图片证件识别
         tmp_time = time.time()
         is_card = is_idcard_model.get_res_from_one(image)
-        self.log_info("{} 证件识别耗时: {}".format(media_id, time.time() - tmp_time))
-
+        time_ic = time.time() - tmp_time
+        # self.log_info("{} 证件识别耗时: {}".format(media_id, time.time() - tmp_time))
+        tmp_time = time.time()
         face_count = self.parser_face(user_id, media_id, image)
+        time_face = time.time() - tmp_time
         b, g, r = cv2.split(image)
         is_black_and_white = 1 if ((b == g).all() and (b == r).all()) else 0
         data_json = {
@@ -519,7 +523,8 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         #     else:
         #         util.removefile(tmp_data.get('image_path'))
 
-        self.log_info("{} 处理耗时: {}".format(media_id, time.time() - tmp_time))
+        self.log_info("{} total time: {}, dl time: {}, making time: {}, ic time: {}, face time: {}".format(
+            media_id, time.time() - start_time, time_dl, time_making, time_ic, time_face))
 
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
         # fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
