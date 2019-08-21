@@ -25,16 +25,14 @@ from dl_module.image_local_color_interface import ImageLocalColor
 from dl_module.image_autocolor_interface import ImageAutoColor
 from dl_module import object_detection_interface
 
-# try:
-#     import absl.logging
-#
-#     # https://github.com/abseil/abseil-py/issues/99
-#     logging.root.removeHandler(absl.logging._absl_handler)
-#     # https://github.com/abseil/abseil-py/issues/102
-#     absl.logging._warn_preinit_stderr = False
-# except Exception as e1:
-#     print(e1)
-#     pass
+try:
+    import absl.logging
+
+    logging.root.removeHandler(absl.logging._absl_handler)
+    absl.logging._warn_preinit_stderr = False
+except Exception as e1:
+    print(e1)
+    pass
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
