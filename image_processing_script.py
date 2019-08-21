@@ -258,7 +258,7 @@ def get_redis_next_data(rds_name):
                 'fileId': params.get('file_id'),
                 'tag': str([]),
                 'filePath': image_url,
-                'exponent': None,
+                'exponent': 0,
                 'mediaInfo': str(json.dumps({
                     "certificateInfo": [],
                 }, ensure_ascii=False)),
