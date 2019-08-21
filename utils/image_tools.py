@@ -97,6 +97,6 @@ def download_image(image_url, output_dir):
             if os.path.isfile(new_img_path):
                 util.removefile(image_path)
                 return {'code': 1, "image_path": new_img_path}
-        elif image_type.lower() in ['jpeg', 'png', 'bmp', 'jpg']:
+        elif image_type.lower() in ['.jpeg', '.png', '.bmp', '.jpg']:
             return {'code': 1, "image_path": image_path}
     return {'code': -2, "image_path": image_path, "img_type": image_get_type}
