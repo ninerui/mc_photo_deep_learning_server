@@ -229,7 +229,7 @@ def get_redis_next_data(rds_name):
     params_data = redis_connect.rpop(rds_name)
     if params_data:
         params = json.loads(params_data)
-        logging.info(params)
+        logging.info("剩余数据: {}, data: {}".format(redis_connect.llen(conf.redis_image_making_list_name), params))
         image_url = params.get("image_url")
         res_data = image_tools.download_image(image_url, conf.tmp_image_dir)
         download_code = res_data.get('code')
@@ -412,8 +412,8 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         media_id = params_data.get('media_id')
         user_id = params_data.get('user_id')
         image_url = params_data.get('image_url')
-        self.log_info("{} 开始处理, 还剩{}条数据".format(
-            os.path.basename(image_url), redis_connect.llen(conf.redis_image_making_list_name)))
+        # self.log_info("{} 开始处理, 还剩{}条数据".format(
+        #     os.path.basename(image_url), redis_connect.llen(conf.redis_image_making_list_name)))
 
         time_dl = time.time() - start_time
         # 开始图片打标
