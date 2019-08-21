@@ -126,15 +126,19 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
         face_user_key = r_object.rpop_content(conf.redis_face_info_key_list)
         if not face_user_key:
             return
+        if r_object.llen_content(face_user_key) <= 0:
+            r_object.srem_content(conf.redis_face_info_key_set, face_user_key)
+            return
         user_id = face_user_key.split('-')[1]
         oss_running_file = "face_cluster_data/{}/.running".format(user_id)
         exist = oss_bucket.object_exists(oss_running_file)
         if exist:
             if r_object.llen_content(face_user_key) > 0:
-                r_set_code = r_object.sadd_content(conf.redis_face_info_key_set, face_user_key)
-                if r_set_code == 1:
-                    r_object.lpush_content(conf.redis_face_info_key_list, face_user_key)
-            return
+                r_object.lpush_content(conf.redis_face_info_key_list, face_user_key)
+                return
+            else:
+                r_object.srem_content(conf.redis_face_info_key_set, face_user_key)
+                return
         oss_bucket.put_object(oss_running_file, 'running')
         r_object.srem_content(conf.redis_face_info_key_set, face_user_key)
         try:
