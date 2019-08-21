@@ -234,6 +234,7 @@ def get_redis_next_data(rds_name):
     params_data = r_object.rpop_content(rds_name)
     if params_data:
         params = json.loads(params_data)
+        logging.info(params)
         image_url = params.get("image_url")
         res_data = image_tools.download_image(image_url, conf.tmp_image_dir)
         download_code = res_data.get('code')
