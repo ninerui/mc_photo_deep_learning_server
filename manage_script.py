@@ -45,7 +45,7 @@ def clean_log(path):
 
 
 def main():
-    print("当前主机ip: {}, 服务器重启码: {}".format(local_ip, r_object.get_content(local_ip)))
+    print("当前主机ip: {}, 服务器重启码: {}".format(local_ip, redis_connect.get(local_ip)))
     sub_datetime = datetime.datetime.today()
     hour = sub_datetime.hour
     if hour == 0:
@@ -57,13 +57,13 @@ def main():
             start_script(script_name)
         return
     elif cmd in ['restart', 'stop']:
-        r_object.set_content(local_ip, '1')
-        print("设置状态后服务器重启码: {}".format(r_object.get_content(local_ip)))
+        redis_connect.set(local_ip, '1')
+        print("设置状态后服务器重启码: {}".format(redis_connect.get(local_ip)))
         while True:
             python_process = get_script_status(script_name)
             if len(python_process) < 1:
                 print('程序已经退出...')
-                r_object.set_content(local_ip, '0')
+                redis_connect.set(local_ip, '0')
                 if cmd == 'stop':
                     return
                 elif cmd == 'restart':
@@ -93,8 +93,9 @@ if __name__ == '__main__':
     env_code = conf.env_manage.get(local_ip, 0)
     account_conf = conf.AccountConf(env_code=env_code)
     # 连接redis
-    r_object = connects.ConnectRedis(
-        account_conf.res_host, account_conf.res_port, account_conf.res_decode_responses, account_conf.res_password)
+    redis_connect = connects.ConnectRedis(
+        account_conf.res_host, account_conf.res_port, account_conf.res_decode_responses, account_conf.res_password
+    ).r_object
 
     # script_name = 'face_cluster_script.py'
     # log_file = "./log/face_cluster_script.log"

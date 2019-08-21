@@ -22,12 +22,12 @@ def image_making():
             request_data['reg_count'] = 0
             try:
                 if request_type:  # 精彩图片合成
-                    r_object.lpush_content(conf.res_wonderful_gen_name, json.dumps(request_data))
+                    redis_connect.lpush(conf.redis_wonderful_gen_name, json.dumps(request_data))
                 else:  # 图片打标
                     media_id = request_data.get('media_id', None)
-                    res_code = r_object.sadd_content(conf.redis_image_making_set_name, media_id)
+                    res_code = redis_connect.lpush(conf.redis_image_making_set_name, media_id)
                     if res_code == 1:
-                        r_object.lpush_content(conf.redis_image_making_list_name, json.dumps(request_data))
+                        redis_connect.lpush(conf.redis_image_making_list_name, json.dumps(request_data))
             except Exception as e:
                 logging.exception(e)
                 return json.dumps(conf.status_code['37'])
@@ -49,8 +49,8 @@ if __name__ == '__main__':
     logging.info("获取到的脚本运行环境代码为: {}".format(env_code))
     account_conf = conf.AccountConf(env_code=env_code)
     # 连接redis
-    r_object = connects.ConnectRedis(
-        account_conf.res_host, account_conf.res_port, account_conf.res_decode_responses, account_conf.res_password)
-
+    redis_connect = connects.ConnectRedis(
+        account_conf.res_host, account_conf.res_port, account_conf.res_decode_responses, account_conf.res_password
+    ).r_object
     # 启动 flask 进程
     app.run(host='127.0.0.1', port=8081, debug=True)
