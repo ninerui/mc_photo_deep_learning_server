@@ -2,52 +2,44 @@ import os
 import time
 import json
 import pickle
-# import shutil
 import logging
 import threading
-# import collections
 from urllib.request import urlretrieve
 
 import cv2
 import imageio
 import requests
 import numpy as np
-# from tensorflow import keras
 from PIL import Image, ImageFile
-from PIL import ImageFilter, ImageColor
 
 import conf
 from utils import connects, util, image_tools
 from dl_module import face_cluster_interface
 from dl_module import face_emotion_interface
-# from dl_module import image_quality_assessment_interface
 from dl_module import zhouwen_image_card_classify_interface
 from dl_module import image_making_interface, face_detection_interface, face_recognition_interface
 from dl_module import image_enhancement_interface
-# from dl_module.fasterai.visualize import get_image_colorizer
 from dl_module.human_pose_estimation_interface import TfPoseEstimator
-# from dl_module.object_mask_detection_interface import ObjectMaskDetection
 from dl_module.zhouwen_detect_blur import detection_blur
 from dl_module.image_local_color_interface import ImageLocalColor
 from dl_module.image_autocolor_interface import ImageAutoColor
 from dl_module import object_detection_interface
 
-try:
-    import absl.logging
-
-    # https://github.com/abseil/abseil-py/issues/99
-    logging.root.removeHandler(absl.logging._absl_handler)
-    # https://github.com/abseil/abseil-py/issues/102
-    absl.logging._warn_preinit_stderr = False
-except Exception as e1:
-    print(e1)
-    pass
+# try:
+#     import absl.logging
+#
+#     # https://github.com/abseil/abseil-py/issues/99
+#     logging.root.removeHandler(absl.logging._absl_handler)
+#     # https://github.com/abseil/abseil-py/issues/102
+#     absl.logging._warn_preinit_stderr = False
+# except Exception as e1:
+#     print(e1)
+#     pass
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 def check_restart(sleep_time):
-    # reboot_code = r_object.get_content(local_ip)
     reboot_code = redis_connect.get(local_ip)
     if reboot_code == '1':
         logging.info('发现服务需要重启, 重启代码: {}'.format(reboot_code))
@@ -116,41 +108,22 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
     def log_exception(self, content):
         logging.exception(self.log_content.format(content))
 
-    # def check_restart(self, params_count):
-    #     reboot_code = r_object.get_content(local_ip)
-    #     if reboot_code == '1':
-    #         self.log_info('发现服务需要重启, 重启代码: {}'.format(reboot_code))
-    #         raise SystemExit
-    #     time.sleep(9 / max(1, params_count))
-
     def main_func(self, fe_detection, fr_arcface):
         face_user_key = redis_connect.spop(conf.redis_face_info_key_set)
-        # face_user_key = r_object.rpop_content(conf.redis_face_info_key_list)
         if not face_user_key:
             return
-        # if r_object.llen_content(face_user_key) <= 0:
-        #     r_object.srem_content(conf.redis_face_info_key_set, face_user_key)
-        #     return
         user_id = face_user_key.split('-')[1]
         oss_running_file = "face_cluster_data/{}/.running".format(user_id)
         exist = oss_connect.object_exists(oss_running_file)
         if exist and redis_connect.llen(face_user_key) != 0:
             redis_connect.sadd(conf.redis_face_info_key_set, face_user_key)
             return
-            # if r_object.llen_content(face_user_key) > 0:
-            #     r_object.lpush_content(conf.redis_face_info_key_list, face_user_key)
-            #     return
-            # else:
-            #     r_object.srem_content(conf.redis_face_info_key_set, face_user_key)
-            #     return
         oss_connect.put_object(oss_running_file, 'running')
-        # r_object.srem_content(conf.redis_face_info_key_set, face_user_key)
         try:
             face_data = []
             success_image_set = set()
             while True:
                 data_ = redis_connect.rpop(face_user_key)
-                # data_ = r_object.rpop_content(face_user_key)
                 if not data_:
                     break
                 data_ = json.loads(data_)
@@ -216,7 +189,6 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
             if exist:
                 oss_connect.delete_object(oss_running_file)
             if redis_connect.llen(face_user_key) != 0:
-                # r_set_code = r_object.sadd_content(conf.redis_face_info_key_set, face_user_key)
                 r_set_code = redis_connect.sadd(conf.redis_face_info_key_set, face_user_key)
             return
 
@@ -235,7 +207,6 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
 
 
 def get_redis_next_data(rds_name):
-    # params_data = r_object.rpop_content(rds_name)
     params_data = redis_connect.rpop(rds_name)
     if params_data:
         params = json.loads(params_data)
@@ -247,24 +218,16 @@ def get_redis_next_data(rds_name):
         if download_code == -1:  # 下载失败, 打回列表
             reg_count = params.get('reg_count', 0)
             if reg_count > 100:
-                # r_object.lpush_content(
-                #     conf.redis_image_making_error_name,
-                #
-                # )
                 redis_connect.lpush(conf.redis_image_making_error_name,
                                     json.dumps({'error_type': "download_fail", "error_data": params}))
 
                 return None
             params['reg_count'] = reg_count + 1
             time.sleep(2)
-            # r_object.rpush_content(conf.redis_image_making_list_name, json.dumps(params))
             redis_connect.rpush(conf.redis_image_making_list_name, json.dumps(params))
         elif download_code == -2:  # 未知错误
             img_type = res_data.get('img_type')
             oss_key = "error_image/{}".format(os.path.basename(image_path))
-            # r_object.lpush_content(
-            #     conf.redis_image_making_error_name,
-            #     json.dumps({'error_code': -2, "img_type": img_type, "error_data": params, "oss_key": oss_key}))
             redis_connect.lpush(conf.redis_image_making_error_name,
                                 json.dumps(
                                     {'error_code': -2, "img_type": img_type, "error_data": params, "oss_key": oss_key}))
@@ -300,7 +263,6 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 call_res = requests.post(callback_url, json=data_json)
                 if int(call_res.status_code) == 200:
                     call_suc_status = True
-                    # self.log_info("call_status: {}".format(call_res.text))
                     return call_suc_status
                 else:
                     self.log_error("call_status: {}".format(call_res.text))
@@ -326,7 +288,6 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             fd_boxes_, fd_scores_ = fd_ssd_detection.detect_face(image_np_expanded)
 
             for idx in range(fd_boxes_[0].shape[0]):
-                # self.log_info('renlianrenlian{}'.format(fd_scores_[0][idx]))
                 if fd_scores_[0][idx] < 0.7:
                     break
                 ymin, xmin, ymax, xmax = fd_boxes_[0][idx]
@@ -367,61 +328,20 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 oss_connect.put_object_from_file(oss_face_image_name, face_image_path)
                 util.removefile(face_image_path)
 
-                # emotion_label_arg = a.detection_emotion(warped)
-                # warped = np.transpose(warped, (2, 0, 1))
-                # emb = b.get_feature(warped)
-
                 redis_user_key = conf.redis_face_info_name.format(user_id)
                 if redis_connect.llen(redis_user_key) == 0:
                     r_set_code = redis_connect.sadd(conf.redis_face_info_key_set, redis_user_key)
-                # if r_set_code == 1:
-                #     r_object.lpush_content(conf.redis_face_info_key_list, redis_user_key)
-
-                # r_object.lpush_content(redis_user_key, json.dumps({
-                #     "media_id": media_id,
-                #     "face_id": "{}_{}".format(media_id, idx),
-                #     "face_box": [left, top, right - left, bottom - top],
-                #     # "user_id": user_id,
-                #     "face_data": warped.tolist(),
-                #     # "face_feature": np.array(emb).tolist(),
-                #     # "emotionStr": emotion_label_arg,
-                # }))
                 redis_connect.lpush(redis_user_key, json.dumps({
                     "media_id": media_id,
                     "face_id": "{}_{}".format(media_id, idx),
                     "face_box": [left, top, right - left, bottom - top],
-                    # "user_id": user_id,
                     "face_data": warped.tolist(),
-                    # "face_feature": np.array(emb).tolist(),
-                    # "emotionStr": emotion_label_arg,
                 }))
-                # self.log_info("{}_{}".format(media_id, idx))
                 face_count += 1
-
-                #
-                # warped = np.transpose(warped, (2, 0, 1))
-                # emb = fr_model.get_feature(warped)
-                #
-                # redis_user_key = conf.redis_face_info_name.format(user_id)
-                # r_object.lpush_content(redis_user_key, json.dumps({
-                #     "face_id": "{}_{}".format(media_id, idx),
-                #     "face_box": [left, top, right - left, bottom - top],
-                #     "face_feature": np.array(emb).tolist(),
-                #     "emotionStr": emotion_label_arg,
-                # }))
-                # r_object.lpush_content(conf.redis_face_info_key_list, redis_user_key)
-            # self.log_info("{}人脸耗时: {}".format(media_id, time.time() - tmp_time))
         except Exception as e:
             self.log_exception("{}上传失败\n{}".format(media_id, e))
         finally:
             return 0
-
-    # def check_restart(self, sleep_time):
-    #     reboot_code = r_object.get_content(local_ip)
-    #     if reboot_code == '1':
-    #         self.log_info('发现服务需要重启, 重启代码: {}'.format(reboot_code))
-    #         raise SystemExit
-    #     time.sleep(sleep_time)
 
     def get_is_local_color(self, image):
         res = 0
@@ -440,23 +360,6 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 ymin, xmin, ymax, xmax = od_boxes[0][idx]
                 if (abs((xmax - xmin) / 2. + xmin - 0.5) < 0.1) and (ymin < 0.4) and (ymax > 0.6):
                     tiaojian = True
-
-            # scale = 600. / max(image.shape)
-            # image = cv2.resize(image, (int(image.shape[1] * scale), int(image.shape[0] * scale)))
-            # humans = pose_estimator_model.inference(image, resize_to_default=False, upsample_size=8.0)
-            # for human in humans:
-            #     tmp = False
-            #     for k, v in human.body_parts.items():
-            #         if k in [0, 1]:
-            #             x_, y_ = v.x, v.y
-            #             if abs(x_ - 0.5) < 0.1:
-            #                 tmp = True
-            #     if tmp:
-            #         res += 1
-            #     if res > 1:
-            #         res = 0
-            #         break
-            # self.log_info("目标检测耗时: {}".format(time.time() - tmp_time))
         except Exception as e:
             self.log_exception(e)
         finally:
@@ -467,7 +370,6 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
 
     def main_func(self):
         start_time = time.time()
-        # params_data = get_rds_next_data(conf.res_image_making_name, 3)
         params_data = get_redis_next_data(conf.redis_image_making_list_name)
         if params_data is None:
             return
@@ -507,7 +409,6 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             'mediaInfo': str(json.dumps({
                 "certificateInfo": is_card,
             }, ensure_ascii=False)),
-            # "isBlackAndWhite": tags_list[idx].get("is_black_and_white"),
             "isBlackAndWhite": is_black_and_white,
             "isLocalColor": is_local_color,
             'existFace': min(face_count, 127),
@@ -609,11 +510,7 @@ class GenerationWonderfulImageThread(threading.Thread):
                 params = json.loads(params)
                 self.log_info("开始生成精彩, 剩余数据: {} 条, 当前数据: {}".format(params_count - 1, params))
                 wonderful_type = params.get("type")
-                # if int(wonderful_type) != 12:
-                #     continue
                 user_id = params.get("userId")
-                # if str(user_id) != "11380 ":
-                #     continue
                 media_id = params.get("mediaId")
                 image_url = params.get('imageUrl', None)
                 image_local_path = params.get('imageLocalPath', None)
@@ -703,12 +600,6 @@ if __name__ == '__main__':
         image_enhancement_model = image_enhancement_interface.AIChallengeWithDPEDSRCNN()
         pose_estimator_model = TfPoseEstimator('./models/pose_estimator_models.pb', target_size=(432, 368))
         create_local_color = ImageLocalColor()
-    # fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
-
-    # colorizer_model = get_image_colorizer(artistic=True)
-    # object_mask_detection_model = ObjectMaskDetection()
-
-    # od_model = object_detection_interface.ObjectDetectionWithSSDMobilenetV2()
 
     # 创建线程并开始图片打标线程
     for i in range(conf.image_process_thread_num):

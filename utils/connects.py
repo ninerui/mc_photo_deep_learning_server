@@ -10,35 +10,35 @@ class ConnectRedis:
             host=res_host, port=res_port, decode_responses=res_decode_responses, password=res_password)
         self.r_object = redis.Redis(connection_pool=r_pool)
 
-    def get_content(self, key):
-        return self.r_object.get(key)
-
-    def set_content(self, key, data):
-        self.r_object.set(key, data)
-
-    def llen_content(self, key):
-        return self.r_object.llen(key)
-
-    def rpop_content(self, key):
-        return self.r_object.rpop(key)
-
-    def rpush_content(self, key, value):
-        self.r_object.rpush(key, value)
-
-    def lpush_content(self, key, value):
-        self.r_object.lpush(key, value)
-
-    def sadd_content(self, key, value):
-        return self.r_object.sadd(key, value)
-
-    def srem_content(self, key, value):
-        return self.r_object.srem(key, value)
-
-    def spop_content(self, key):
-        return self.r_object.spop(key)
-
-    def sismember_content(self, key, value):
-        return self.r_object.sismember(key, value)
+    # def get_content(self, key):
+    #     return self.r_object.get(key)
+    #
+    # def set_content(self, key, data):
+    #     self.r_object.set(key, data)
+    #
+    # def llen_content(self, key):
+    #     return self.r_object.llen(key)
+    #
+    # def rpop_content(self, key):
+    #     return self.r_object.rpop(key)
+    #
+    # def rpush_content(self, key, value):
+    #     self.r_object.rpush(key, value)
+    #
+    # def lpush_content(self, key, value):
+    #     self.r_object.lpush(key, value)
+    #
+    # def sadd_content(self, key, value):
+    #     return self.r_object.sadd(key, value)
+    #
+    # def srem_content(self, key, value):
+    #     return self.r_object.srem(key, value)
+    #
+    # def spop_content(self, key):
+    #     return self.r_object.spop(key)
+    #
+    # def sismember_content(self, key, value):
+    #     return self.r_object.sismember(key, value)
 
 
 class ConnectALiYunOSS:
