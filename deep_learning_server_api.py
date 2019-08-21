@@ -25,7 +25,7 @@ def image_making():
                     redis_connect.lpush(conf.redis_wonderful_gen_name, json.dumps(request_data))
                 else:  # 图片打标
                     media_id = request_data.get('media_id', None)
-                    res_code = redis_connect.lpush(conf.redis_image_making_set_name, media_id)
+                    res_code = redis_connect.sadd(conf.redis_image_making_set_name, media_id)
                     if res_code == 1:
                         redis_connect.lpush(conf.redis_image_making_list_name, json.dumps(request_data))
             except Exception as e:

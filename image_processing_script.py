@@ -91,6 +91,27 @@ def call_url_func(user_id, callback_url, data_json):
     return call_suc_status
 
 
+def call_url_func_making(callback_url, data_json):
+    call_count = 0
+    call_suc_status = False
+    while call_count < 20:
+        try:
+            call_res = requests.post(callback_url, json=data_json)
+            if int(call_res.status_code) == 200:
+                call_suc_status = True
+                return call_suc_status
+            else:
+                logging.error("call_status: {}".format(call_res.text))
+                time.sleep(9)
+                call_count += 1
+        except Exception as e:
+            logging.exception(e)
+            call_count += 1
+            time.sleep(9)
+            continue
+    return call_suc_status
+
+
 class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
     def __init__(self, thread_name):
         threading.Thread.__init__(self)
@@ -231,6 +252,22 @@ def get_redis_next_data(rds_name):
                                     {'error_code': -2, "img_type": img_type, "error_data": params, "oss_key": oss_key}))
             oss_connect.put_object_from_file(oss_key, image_path)
             util.removefile(image_path)
+
+            data_json = {
+                'mediaId': params.get('media_id'),
+                'fileId': params.get('file_id'),
+                'tag': str([]),
+                'filePath': image_url,
+                'exponent': None,
+                'mediaInfo': str(json.dumps({
+                    "certificateInfo": [],
+                }, ensure_ascii=False)),
+                "isBlackAndWhite": 0,
+                "isLocalColor": 0,
+                'existFace': 0,
+            }
+            call_results_status = call_url_func_making(params.get('callback_url'), data_json=data_json)
+
         else:  # 图片处理成功
             params['image_path'] = image_path
             return params
