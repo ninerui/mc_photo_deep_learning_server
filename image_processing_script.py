@@ -47,7 +47,8 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 def check_restart(sleep_time):
-    reboot_code = r_object.get_content(local_ip)
+    # reboot_code = r_object.get_content(local_ip)
+    reboot_code = redis_connect.get(local_ip)
     if reboot_code == '1':
         logging.info('发现服务需要重启, 重启代码: {}'.format(reboot_code))
         raise SystemExit
@@ -63,11 +64,11 @@ class FilePathConf:
     def __init__(self, user_id):
         self.oss_running_file = "face_cluster_data/{}/.running".format(user_id)
         self.oss_suc_img_list_file = "face_cluster_data/{}/suc_img_list.pkl".format(user_id)
-        oss_bucket.get_set_object(self.oss_suc_img_list_file, [])
+        oss_connect.get_set_object(self.oss_suc_img_list_file, [])
         self.oss_face_id_with_label_file = "face_cluster_data/{}/face_id_with_label.pkl".format(user_id)
-        oss_bucket.get_set_object(self.oss_face_id_with_label_file, {})
+        oss_connect.get_set_object(self.oss_face_id_with_label_file, {})
         self.oss_face_data_file = "face_cluster_data/{}/face_data.pkl".format(user_id)
-        oss_bucket.get_set_object(self.oss_face_data_file, [])
+        oss_connect.get_set_object(self.oss_face_data_file, [])
 
 
 def image_resize(image):
@@ -115,37 +116,41 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
     def log_exception(self, content):
         logging.exception(self.log_content.format(content))
 
-    def check_restart(self, params_count):
-        reboot_code = r_object.get_content(local_ip)
-        if reboot_code == '1':
-            self.log_info('发现服务需要重启, 重启代码: {}'.format(reboot_code))
-            raise SystemExit
-        time.sleep(9 / max(1, params_count))
+    # def check_restart(self, params_count):
+    #     reboot_code = r_object.get_content(local_ip)
+    #     if reboot_code == '1':
+    #         self.log_info('发现服务需要重启, 重启代码: {}'.format(reboot_code))
+    #         raise SystemExit
+    #     time.sleep(9 / max(1, params_count))
 
     def main_func(self, fe_detection, fr_arcface):
-        face_user_key = r_object.rpop_content(conf.redis_face_info_key_list)
+        face_user_key = redis_connect.spop(conf.redis_face_info_key_set)
+        # face_user_key = r_object.rpop_content(conf.redis_face_info_key_list)
         if not face_user_key:
             return
-        if r_object.llen_content(face_user_key) <= 0:
-            r_object.srem_content(conf.redis_face_info_key_set, face_user_key)
-            return
+        # if r_object.llen_content(face_user_key) <= 0:
+        #     r_object.srem_content(conf.redis_face_info_key_set, face_user_key)
+        #     return
         user_id = face_user_key.split('-')[1]
         oss_running_file = "face_cluster_data/{}/.running".format(user_id)
-        exist = oss_bucket.object_exists(oss_running_file)
-        if exist:
-            if r_object.llen_content(face_user_key) > 0:
-                r_object.lpush_content(conf.redis_face_info_key_list, face_user_key)
-                return
-            else:
-                r_object.srem_content(conf.redis_face_info_key_set, face_user_key)
-                return
-        oss_bucket.put_object(oss_running_file, 'running')
-        r_object.srem_content(conf.redis_face_info_key_set, face_user_key)
+        exist = oss_connect.object_exists(oss_running_file)
+        if exist and redis_connect.llen(face_user_key) != 0:
+            redis_connect.sadd(conf.redis_face_info_key_set, face_user_key)
+            return
+            # if r_object.llen_content(face_user_key) > 0:
+            #     r_object.lpush_content(conf.redis_face_info_key_list, face_user_key)
+            #     return
+            # else:
+            #     r_object.srem_content(conf.redis_face_info_key_set, face_user_key)
+            #     return
+        oss_connect.put_object(oss_running_file, 'running')
+        # r_object.srem_content(conf.redis_face_info_key_set, face_user_key)
         try:
             face_data = []
             success_image_set = set()
             while True:
-                data_ = r_object.rpop_content(face_user_key)
+                data_ = redis_connect.rpop(face_user_key)
+                # data_ = r_object.rpop_content(face_user_key)
                 if not data_:
                     break
                 data_ = json.loads(data_)
@@ -167,15 +172,15 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
                 success_image_set.add(media_id)
             if len(face_data) > 0:
                 oss_suc_img_list_file = "face_cluster_data/{}/suc_img_list.pkl".format(user_id)
-                oss_bucket.get_set_object(oss_suc_img_list_file, set())
+                oss_connect.get_set_object(oss_suc_img_list_file, set())
                 oss_face_id_with_label_file = "face_cluster_data/{}/face_id_with_label.pkl".format(user_id)
-                oss_bucket.get_set_object(oss_face_id_with_label_file, dict())
+                oss_connect.get_set_object(oss_face_id_with_label_file, dict())
                 oss_face_data_file = "face_cluster_data/{}/face_data.pkl".format(user_id)
-                oss_bucket.get_set_object(oss_face_data_file, list())
+                oss_connect.get_set_object(oss_face_data_file, list())
 
-                suc_parser_img_set = pickle.loads(oss_bucket.get_object(oss_suc_img_list_file).read())
-                face_id_label_dict = pickle.loads(oss_bucket.get_object(oss_face_id_with_label_file).read())
-                old_data = pickle.loads(oss_bucket.get_object(oss_face_data_file).read())
+                suc_parser_img_set = pickle.loads(oss_connect.get_object(oss_suc_img_list_file).read())
+                face_id_label_dict = pickle.loads(oss_connect.get_object(oss_face_id_with_label_file).read())
+                old_data = pickle.loads(oss_connect.get_object(oss_face_data_file).read())
 
                 face_data = old_data + face_data
                 start_cluster_time = time.time()
@@ -194,26 +199,25 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
                 if not call_results_status:
                     # 回调失败, 保存结果
                     logging.error("用户ID: {}, 结果列表回调失败, 保存结果至oss!".format(user_id))
-                    oss_bucket.put_object(
+                    oss_connect.put_object(
                         "face_cluster_call_error_data/{}/call_result_error.pkl".format(user_id),
                         pickle.dumps({
                             "handle_result_url": conf.handle_result_url,
                             "user_id": user_id,
                             "call_res_dict": call_res_dict,
                         }))
-                oss_bucket.put_object(oss_face_id_with_label_file, pickle.dumps(face_id_label_dict))
-                oss_bucket.put_object(oss_face_data_file, pickle.dumps(face_data))
-                oss_bucket.put_object(oss_suc_img_list_file, pickle.dumps(success_image_set | suc_parser_img_set))
+                oss_connect.put_object(oss_face_id_with_label_file, pickle.dumps(face_id_label_dict))
+                oss_connect.put_object(oss_face_data_file, pickle.dumps(face_data))
+                oss_connect.put_object(oss_suc_img_list_file, pickle.dumps(success_image_set | suc_parser_img_set))
         except Exception as e:
             self.log_exception(e)
         finally:
-            exist = oss_bucket.object_exists(oss_running_file)
+            exist = oss_connect.object_exists(oss_running_file)
             if exist:
-                oss_bucket.delete_object(oss_running_file)
-            if r_object.llen_content(face_user_key) > 0:
-                r_set_code = r_object.sadd_content(conf.redis_face_info_key_set, face_user_key)
-                if r_set_code == 1:
-                    r_object.lpush_content(conf.redis_face_info_key_list, face_user_key)
+                oss_connect.delete_object(oss_running_file)
+            if redis_connect.llen(face_user_key) != 0:
+                # r_set_code = r_object.sadd_content(conf.redis_face_info_key_set, face_user_key)
+                r_set_code = redis_connect.sadd(conf.redis_face_info_key_set, face_user_key)
             return
 
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
@@ -231,7 +235,8 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
 
 
 def get_redis_next_data(rds_name):
-    params_data = r_object.rpop_content(rds_name)
+    # params_data = r_object.rpop_content(rds_name)
+    params_data = redis_connect.rpop(rds_name)
     if params_data:
         params = json.loads(params_data)
         logging.info(params)
@@ -242,21 +247,28 @@ def get_redis_next_data(rds_name):
         if download_code == -1:  # 下载失败, 打回列表
             reg_count = params.get('reg_count', 0)
             if reg_count > 100:
-                r_object.lpush_content(
-                    conf.redis_image_making_error_name,
-                    json.dumps({'error_type': "download_fail", "error_data": params})
-                )
+                # r_object.lpush_content(
+                #     conf.redis_image_making_error_name,
+                #
+                # )
+                redis_connect.lpush(conf.redis_image_making_error_name,
+                                    json.dumps({'error_type': "download_fail", "error_data": params}))
+
                 return None
             params['reg_count'] = reg_count + 1
             time.sleep(2)
-            r_object.rpush_content(conf.redis_image_making_list_name, json.dumps(params))
+            # r_object.rpush_content(conf.redis_image_making_list_name, json.dumps(params))
+            redis_connect.rpush(conf.redis_image_making_list_name, json.dumps(params))
         elif download_code == -2:  # 未知错误
             img_type = res_data.get('img_type')
             oss_key = "error_image/{}".format(os.path.basename(image_path))
-            r_object.lpush_content(
-                conf.redis_image_making_error_name,
-                json.dumps({'error_code': -2, "img_type": img_type, "error_data": params, "oss_key": oss_key}))
-            oss_bucket.put_object_from_file(oss_key, image_path)
+            # r_object.lpush_content(
+            #     conf.redis_image_making_error_name,
+            #     json.dumps({'error_code': -2, "img_type": img_type, "error_data": params, "oss_key": oss_key}))
+            redis_connect.lpush(conf.redis_image_making_error_name,
+                                json.dumps(
+                                    {'error_code': -2, "img_type": img_type, "error_data": params, "oss_key": oss_key}))
+            oss_connect.put_object_from_file(oss_key, image_path)
             util.removefile(image_path)
         else:  # 图片处理成功
             params['image_path'] = image_path
@@ -352,7 +364,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 cv2.imwrite(face_image_path, cv2.cvtColor(face_image, cv2.COLOR_RGB2BGR))
                 oss_face_image_name = "face_cluster_data/{}/face_images/{}_{}.jpg".format(
                     user_id, media_id, idx)
-                oss_bucket.put_object_from_file(oss_face_image_name, face_image_path)
+                oss_connect.put_object_from_file(oss_face_image_name, face_image_path)
                 util.removefile(face_image_path)
 
                 # emotion_label_arg = a.detection_emotion(warped)
@@ -360,11 +372,21 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 # emb = b.get_feature(warped)
 
                 redis_user_key = conf.redis_face_info_name.format(user_id)
-                r_set_code = r_object.sadd_content(conf.redis_face_info_key_set, redis_user_key)
-                if r_set_code == 1:
-                    r_object.lpush_content(conf.redis_face_info_key_list, redis_user_key)
+                if redis_connect.llen(redis_user_key) == 0:
+                    r_set_code = redis_connect.sadd(conf.redis_face_info_key_set, redis_user_key)
+                # if r_set_code == 1:
+                #     r_object.lpush_content(conf.redis_face_info_key_list, redis_user_key)
 
-                r_object.lpush_content(redis_user_key, json.dumps({
+                # r_object.lpush_content(redis_user_key, json.dumps({
+                #     "media_id": media_id,
+                #     "face_id": "{}_{}".format(media_id, idx),
+                #     "face_box": [left, top, right - left, bottom - top],
+                #     # "user_id": user_id,
+                #     "face_data": warped.tolist(),
+                #     # "face_feature": np.array(emb).tolist(),
+                #     # "emotionStr": emotion_label_arg,
+                # }))
+                redis_connect.lpush(redis_user_key, json.dumps({
                     "media_id": media_id,
                     "face_id": "{}_{}".format(media_id, idx),
                     "face_box": [left, top, right - left, bottom - top],
@@ -394,12 +416,12 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         finally:
             return 0
 
-    def check_restart(self, sleep_time):
-        reboot_code = r_object.get_content(local_ip)
-        if reboot_code == '1':
-            self.log_info('发现服务需要重启, 重启代码: {}'.format(reboot_code))
-            raise SystemExit
-        time.sleep(sleep_time)
+    # def check_restart(self, sleep_time):
+    #     reboot_code = r_object.get_content(local_ip)
+    #     if reboot_code == '1':
+    #         self.log_info('发现服务需要重启, 重启代码: {}'.format(reboot_code))
+    #         raise SystemExit
+    #     time.sleep(sleep_time)
 
     def get_is_local_color(self, image):
         res = 0
@@ -454,7 +476,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         user_id = params_data.get('user_id')
         image_url = params_data.get('image_url')
         self.log_info("{} 开始处理, 还剩{}条数据".format(
-            os.path.basename(image_url), r_object.llen_content(conf.redis_image_making_list_name)))
+            os.path.basename(image_url), redis_connect.llen(conf.redis_image_making_list_name)))
 
         time_dl = time.time() - start_time
         # 开始图片打标
@@ -494,8 +516,8 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
 
         if is_black_and_white == 1:  # 是黑白图片
             oss_key = "wonderful_tmp_dir/{}".format(os.path.basename(image_path))
-            oss_bucket.put_object_from_file(oss_key, image_path)
-            r_object.lpush_content(conf.redis_wonderful_gen_name, json.dumps({
+            oss_connect.put_object_from_file(oss_key, image_path)
+            redis_connect.lpush(conf.redis_wonderful_gen_name, json.dumps({
                 "type": 12,
                 "userId": user_id,
                 "mediaId": media_id,
@@ -503,7 +525,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             }))
         util.removefile(image_path)
 
-        r_object.srem_content(conf.redis_image_making_set_name, media_id)
+        redis_connect.srem(conf.redis_image_making_set_name, media_id)
         self.log_info("{} total time: {}, dl time: {}, making time: {}, ic time: {}, face time: {}, od_time: {}".format(
             os.path.basename(image_url), time.time() - start_time, time_dl, time_making, time_ic, time_face, time_od))
 
@@ -542,7 +564,7 @@ class GenerationWonderfulImageThread(threading.Thread):
         logging.exception(self.log_content.format(content))
 
     def check_restart(self, params_count):
-        reboot_code = r_object.get_content(local_ip)
+        reboot_code = redis_connect.get(local_ip)
         if reboot_code == '1':
             self.log_info('发现服务需要重启, 重启代码: {}'.format(reboot_code))
             raise SystemExit
@@ -579,8 +601,8 @@ class GenerationWonderfulImageThread(threading.Thread):
         self.log_info("精彩生成线程已启动...")
         while True:
             try:
-                params_count = r_object.llen_content(conf.redis_wonderful_gen_name)
-                params = r_object.rpop_content(conf.redis_wonderful_gen_name)
+                params_count = redis_connect.llen(conf.redis_wonderful_gen_name)
+                params = redis_connect.rpop(conf.redis_wonderful_gen_name)
                 if not params:
                     self.check_restart(params_count)
                     continue
@@ -601,8 +623,8 @@ class GenerationWonderfulImageThread(threading.Thread):
                 else:
                     oss_key = params.get("oss_key")
                     image_path = os.path.join(conf.tmp_image_dir, os.path.basename(oss_key))
-                    oss_bucket.get_object_to_file(oss_key, image_path)
-                    oss_bucket.delete_object(oss_key)
+                    oss_connect.get_object_to_file(oss_key, image_path)
+                    oss_connect.delete_object(oss_key)
                 assert os.path.isfile(image_path)
 
                 output_path = os.path.join(conf.tmp_image_dir, "{}_{}.jpg".format(media_id, wonderful_type))
@@ -624,7 +646,7 @@ class GenerationWonderfulImageThread(threading.Thread):
                 elif int(wonderful_type) == 9:  # 局部彩色
                     create_local_color.get_result(image_path, output_path)
                 self.log_info("wonderful_type: {}, 耗时: {}".format(wonderful_type, time.time() - tmp_time))
-                oss_bucket.put_object_from_file(oss_image_path, output_path)
+                oss_connect.put_object_from_file(oss_image_path, output_path)
                 util.removefile(image_path)
                 util.removefile(output_path)
                 if int(wonderful_type) == 12:
@@ -658,13 +680,15 @@ if __name__ == '__main__':
     logging.info("获取运行环境代码为: {}(0: 测试服, 1: 正式服), 开始连接oss和redis...".format(env_code))
     account_conf = conf.AccountConf(env_code=env_code)
     # 连接oss
-    oss_bucket = connects.ConnectALiYunOSS(
+    oss_connect = connects.ConnectALiYunOSS(
         account_conf.accessKeyId, account_conf.accessKeySecret, account_conf.endpoint, account_conf.bucket)
     # 连接redis
-    r_object = connects.ConnectRedis(
-        account_conf.res_host, account_conf.res_port, account_conf.res_decode_responses, account_conf.res_password)
+    redis_connect = connects.ConnectRedis(
+        account_conf.res_host, account_conf.res_port, account_conf.res_decode_responses, account_conf.res_password
+    ).r_object
     # 设置脚本重启代码
-    r_object.set_content(local_ip, "0")
+    redis_connect.set(local_ip, "0")
+    # r_object.set_content()
 
     logging.info("加载全局模型...")
     if conf.image_process_thread_num > 0:
