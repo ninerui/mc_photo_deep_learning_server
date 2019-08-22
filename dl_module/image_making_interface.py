@@ -65,7 +65,7 @@ from utils import tf_tools
 
 
 class ImageMakingWithOpenImage(object):
-    def __init__(self, model_path='./models/open_image_graph_5000.pb'):
+    def __init__(self, model_path='./models/image_classification_models/oidv2-resnet_v1_101.pb'):
         oi_5000_graph = tf_tools.load_pb_model(model_path)
         self.oi_5000_sess = tf.Session(graph=oi_5000_graph)
         self.oi_5000_input = oi_5000_graph.get_tensor_by_name('input_values:0')
