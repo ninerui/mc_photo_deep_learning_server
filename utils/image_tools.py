@@ -1,5 +1,6 @@
 import os
 import imghdr
+import shutil
 import subprocess
 
 import cv2
@@ -92,11 +93,15 @@ def download_image(image_url, output_dir):
         return {'code': 1, "image_path": image_path}
     elif image_get_type is None:
         if image_type.lower() == '.heic':
-            new_img_path = os.path.join(output_dir, "{}.jpg".format(image_id))
+            new_img_path = os.path.join(output_dir, image_id, "{}.jpg".format(image_id))
             subprocess.run(['heif-convert', image_path, new_img_path])
             if os.path.isfile(new_img_path):
-                util.removefile(image_path)
+                # util.removefile(image_path)
+                shutil.rmtree(os.path.join(output_dir, image_id))
                 return {'code': 1, "image_path": new_img_path}
+            if os.path.isfile(os.path.join(output_dir, image_id, "{}-1.jpg".format(image_id))):
+                shutil.rmtree(os.path.join(output_dir, image_id))
+                return {'code': 1, "image_path": os.path.join(output_dir, image_id, "{}-1.jpg".format(image_id))}
         elif image_type.lower() in ['.jpeg', '.png', '.bmp', '.jpg']:
             return {'code': 1, "image_path": image_path}
     return {'code': -2, "image_path": image_path, "img_type": image_get_type}

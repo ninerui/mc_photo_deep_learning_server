@@ -280,7 +280,6 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         threading.Thread.__init__(self)
         self.thread_name = thread_name
         self.log_content = "线程名: {}".format(thread_name) + ", {}"
-        # time.sleep(0.01)
 
     def log_error(self, content):
         logging.error(self.log_content.format(content))
