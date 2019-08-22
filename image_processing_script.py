@@ -128,17 +128,22 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
         logging.exception(self.log_content.format(content))
 
     def main_func(self, fe_detection, fr_arcface):
-        face_user_key = redis_connect.spop(conf.redis_face_info_key_set)
+        face_user_key = redis_connect.rpop(conf.redis_face_info_key_list)
         if not face_user_key:
             return
-        user_id = face_user_key.split('-')[1]
-        oss_running_file = "face_cluster_data/{}/.running".format(user_id)
-        exist = oss_connect.object_exists(oss_running_file)
-        if exist:
-            if redis_connect.llen(face_user_key) != 0:
-                redis_connect.sadd(conf.redis_face_info_key_set, face_user_key)
+        if redis_connect.get(face_user_key):
+            redis_connect.lpush(conf.redis_face_info_key_list, face_user_key)
+            # redis_connect.sadd(conf.redis_face_info_key_set, face_user_key)
             return
-        oss_connect.put_object(oss_running_file, 'running')
+        redis_connect.set(face_user_key, 1)
+        redis_connect.srem(conf.redis_face_info_key_set, face_user_key)
+        user_id = face_user_key.split('-')[1]
+        # oss_running_file = "face_cluster_data/{}/.running".format(user_id)
+        # exist = oss_connect.object_exists(oss_running_file)
+        # if exist:
+        #     redis_connect.sadd(conf.redis_face_info_key_set, face_user_key)
+        #     return
+        # oss_connect.put_object(oss_running_file, 'running')
         try:
             face_data = []
             success_image_set = set()
@@ -204,12 +209,14 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
                 oss_connect.put_object(oss_suc_img_list_file, pickle.dumps(success_image_set | suc_parser_img_set))
         except Exception as e:
             self.log_exception(e)
+            return
         finally:
-            exist = oss_connect.object_exists(oss_running_file)
-            if exist:
-                oss_connect.delete_object(oss_running_file)
-            if redis_connect.llen(face_user_key) != 0:
-                r_set_code = redis_connect.sadd(conf.redis_face_info_key_set, face_user_key)
+            redis_connect.delete(face_user_key)
+            # exist = oss_connect.object_exists(oss_running_file)
+            # if exist:
+            #     oss_connect.delete_object(oss_running_file)
+            # if redis_connect.llen(face_user_key) != 0:
+            #     r_set_code = redis_connect.sadd(conf.redis_face_info_key_set, face_user_key)
             return
 
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
@@ -364,8 +371,10 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 util.removefile(face_image_path)
 
                 redis_user_key = conf.redis_face_info_name.format(user_id)
-                if redis_connect.llen(redis_user_key) == 0:
-                    r_set_code = redis_connect.sadd(conf.redis_face_info_key_set, redis_user_key)
+                if redis_connect.sadd(conf.redis_face_info_key_set, redis_user_key) == 1:
+                    redis_connect.lpush(conf.redis_face_info_key_list, redis_user_key)
+                # if redis_connect.llen(redis_user_key) == 0:
+                #     r_set_code = redis_connect.sadd(conf.redis_face_info_key_set, redis_user_key)
                 redis_connect.lpush(redis_user_key, json.dumps({
                     "media_id": media_id,
                     "face_id": "{}_{}".format(media_id, idx),
