@@ -131,11 +131,12 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
         face_user_key = redis_connect.rpop(conf.redis_face_info_key_list)
         if not face_user_key:
             return
-        if redis_connect.get(face_user_key):
+        face_status = face_user_key+'_status'
+        if redis_connect.get(face_status):
             redis_connect.lpush(conf.redis_face_info_key_list, face_user_key)
             # redis_connect.sadd(conf.redis_face_info_key_set, face_user_key)
             return
-        redis_connect.set(face_user_key, 1)
+        redis_connect.set(face_status, 1)
         redis_connect.srem(conf.redis_face_info_key_set, face_user_key)
         user_id = face_user_key.split('-')[1]
         # oss_running_file = "face_cluster_data/{}/.running".format(user_id)
@@ -211,7 +212,7 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
             self.log_exception(e)
             return
         finally:
-            redis_connect.delete(face_user_key)
+            redis_connect.delete(face_status)
             # exist = oss_connect.object_exists(oss_running_file)
             # if exist:
             #     oss_connect.delete_object(oss_running_file)
