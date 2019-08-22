@@ -134,8 +134,9 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
         user_id = face_user_key.split('-')[1]
         oss_running_file = "face_cluster_data/{}/.running".format(user_id)
         exist = oss_connect.object_exists(oss_running_file)
-        if exist and redis_connect.llen(face_user_key) != 0:
-            redis_connect.sadd(conf.redis_face_info_key_set, face_user_key)
+        if exist:
+            if redis_connect.llen(face_user_key) != 0:
+                redis_connect.sadd(conf.redis_face_info_key_set, face_user_key)
             return
         oss_connect.put_object(oss_running_file, 'running')
         try:
