@@ -130,21 +130,16 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
     def main_func(self, fe_detection, fr_arcface):
         face_user_key = redis_connect.rpop(conf.redis_face_info_key_list)
         if not face_user_key:
+            time.sleep(1)
             return
-        face_status = face_user_key+'_status'
-        if redis_connect.get(face_status):
+        face_status = face_user_key + '_status'
+        if redis_connect.get(face_status) == '1':  # 正在运行
             redis_connect.lpush(conf.redis_face_info_key_list, face_user_key)
-            # redis_connect.sadd(conf.redis_face_info_key_set, face_user_key)
+            time.sleep(1)
             return
-        redis_connect.set(face_status, 1)
+        redis_connect.set(face_status, '1')
         redis_connect.srem(conf.redis_face_info_key_set, face_user_key)
         user_id = face_user_key.split('-')[1]
-        # oss_running_file = "face_cluster_data/{}/.running".format(user_id)
-        # exist = oss_connect.object_exists(oss_running_file)
-        # if exist:
-        #     redis_connect.sadd(conf.redis_face_info_key_set, face_user_key)
-        #     return
-        # oss_connect.put_object(oss_running_file, 'running')
         try:
             face_data = []
             success_image_set = set()
@@ -213,11 +208,6 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
             return
         finally:
             redis_connect.delete(face_status)
-            # exist = oss_connect.object_exists(oss_running_file)
-            # if exist:
-            #     oss_connect.delete_object(oss_running_file)
-            # if redis_connect.llen(face_user_key) != 0:
-            #     r_set_code = redis_connect.sadd(conf.redis_face_info_key_set, face_user_key)
             return
 
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
@@ -231,7 +221,7 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
                 self.log_exception(e)
                 continue
             finally:
-                check_restart(1)
+                check_restart(2)
 
 
 def get_redis_next_data(rds_name):
