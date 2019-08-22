@@ -133,11 +133,22 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
             time.sleep(1)
             return
         face_status = face_user_key + '_status'
-        if redis_connect.get(face_status) == '1':  # 正在运行
+        redis_status = redis_connect.get(face_status)
+        if redis_status == "0":  # 正在运行
             redis_connect.lpush(conf.redis_face_info_key_list, face_user_key)
             time.sleep(1)
             return
-        redis_connect.set(face_status, '1')
+        if redis_status is None:
+            redis_connect.lpush(conf.redis_face_info_key_list, face_user_key)
+            redis_connect.set(face_status, '1')
+            time.sleep(1)
+            return
+        if (redis_connect.llen(face_user_key) <= 10) and (int(redis_status) < 50):
+            redis_connect.lpush(conf.redis_face_info_key_list, face_user_key)
+            redis_connect.set(face_status, int(redis_status) + 1)
+            time.sleep(1)
+            return
+        redis_connect.set(face_status, '0')
         redis_connect.srem(conf.redis_face_info_key_set, face_user_key)
         user_id = face_user_key.split('-')[1]
         try:
