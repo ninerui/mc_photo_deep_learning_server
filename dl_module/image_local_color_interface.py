@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from PIL import Image, ImageColor
+from PIL import Image
 
 
 class DeepLabModel(object):
@@ -49,58 +49,21 @@ class DeepLabModel(object):
         return resized_image, seg_map
 
 
-def create_pascal_label_colormap():
-    """Creates a label colormap used in PASCAL VOC segmentation benchmark.
-
-    Returns:
-      A Colormap for visualizing segmentation results.
-    """
-    colormap = np.zeros((256, 3), dtype=int)
-    ind = np.arange(256, dtype=int)
-
-    for shift in reversed(range(8)):
-        for channel in range(3):
-            colormap[:, channel] |= ((ind >> channel) & 1) << shift
-        ind >>= 3
-
-    return colormap
-
-
-def label_to_color_image(label):
-    """Adds color defined by the dataset colormap to the label.
-
-    Args:
-      label: A 2D array with integer type, storing the segmentation label.
-
-    Returns:
-      result: A 2D array with floating type. The element of the array
-        is the color indexed by the corresponding element in the input label
-        to the PASCAL color map.
-
-    Raises:
-      ValueError: If label is not of rank 2 or its value is larger than color
-        map maximum entry.
-    """
-    if label.ndim != 2:
-        raise ValueError('Expect 2-D input label')
-
-    colormap = create_pascal_label_colormap()
-
-    if np.max(label) >= len(colormap):
-        raise ValueError('label value too large.')
-
-    return colormap[label]
-
-
-class ImageLocalColor:
+class ImageLocalColor(object):
     def __init__(self):
-        self.MODEL = DeepLabModel('./models/deeplabv3_pascal_trainval_2018_01_04.pb')
+        self.MODEL = DeepLabModel('./models/deeplabv3_cityscapes_train_2018_02_06.pb')
 
     def get_result(self, input, output):
         original_im = Image.open(input)
         resized_im, seg_map = self.MODEL.run(original_im)
         seg_map = np.where(seg_map == 15, seg_map, 0)
-        rgb = ImageColor.getrgb('black')
+
+        resized_im = original_im
+        seg_map = np.array(Image.fromarray(seg_map.astype('uint8')).resize(original_im.size))
+        # print(np.expand_dims(seg_map, axis=2).shape)
+        # seg_map = cv2.resize(seg_map, (4032, ))
+
+        # rgb = ImageColor.getrgb('black')
         pil_image = resized_im
         pil_image_gray = pil_image.convert('L')
         # pil_image_blur = pil_image.filter(ImageFilter.BLUR)
