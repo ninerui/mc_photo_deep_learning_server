@@ -91,8 +91,8 @@ def get_enjancement_img(input_img, output_img):
     width, heigh, _ = im_input.shape
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
-    with tf.Session(config=config) as sess:
-        checkpoint_path = tf.train.latest_checkpoint('./models/image_enhancement_models/mt_phone')
+    # with tf.Session(config=config) as sess:
+    #     checkpoint_path = tf.train.latest_checkpoint('./models/image_enhancement_models/mt_phone')
     tf.reset_default_graph()
     t_fullres_input = tf.placeholder(tf.float32, (1, width, heigh, 3))
     with tf.variable_scope('inference'):
@@ -100,7 +100,7 @@ def get_enjancement_img(input_img, output_img):
     output = tf.cast(255.0 * tf.squeeze(tf.clip_by_value(prediction, 0, 1)), tf.uint8)
     saver = tf.train.Saver()
     with tf.Session(config=config) as sess:
-        saver.restore(sess, checkpoint_path)
+        saver.restore(sess, './models/image_enhancement_models/mt_phone/model.ckpt-482341')
         im_input = np.flip(im_input, 2)
         im_input = skimage.img_as_float(im_input)
         im_input = im_input[np.newaxis, :, :, :]
