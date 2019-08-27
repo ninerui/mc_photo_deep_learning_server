@@ -74,6 +74,24 @@ def heic2jpg(src_file, result_file):
     # cv2.imwrite(result_file, cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
 
 
+def IsValidImage(file):
+    bValid = True
+    if isinstance(file, (str, os.PathLike)):
+        fileObj = open(file, 'rb')
+    else:
+        fileObj = file
+    buf = fileObj.read()
+    if buf[6:10] in (b'JFIF', b'Exif'):  # jpgͼƬ
+        if not buf.rstrip(b'\0\r\n').endswith(b'\xff\xd9'):
+            bValid = False
+    else:
+        try:
+            Image.open(fileObj).verify()
+        except:
+            bValid = False
+    return bValid
+
+
 def download_image(image_url, output_dir):
     image_name = os.path.basename(image_url)
     image_path = os.path.join(output_dir, image_name)
@@ -90,7 +108,10 @@ def download_image(image_url, output_dir):
             util.removefile(image_path)
             return {'code': 1, "image_path": new_img_path}
     elif image_get_type in ['jpeg', 'png', 'bmp']:
-        return {'code': 1, "image_path": image_path}
+        if IsValidImage(image_path):
+            return {'code': 1, "image_path": image_path}
+        else:
+            return {'code': -3, "image_path": image_path}
     elif image_get_type is None:
         if image_type.lower() == '.heic':
             tmp_dir = os.path.join(output_dir, image_id)

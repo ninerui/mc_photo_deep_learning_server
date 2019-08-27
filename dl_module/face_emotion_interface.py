@@ -18,14 +18,13 @@ def preprocess_input_with_emotion(x, v2=True):
     return x
 
 
-class FaceEmotionKeras():
+class FaceEmotionKeras(object):
     def __init__(self, model_path='./models/fer2013_mini_XCEPTION.102-0.66.hdf5'):
         self.emotion_classifier = keras.models.load_model(model_path, compile=False)
 
     def detection_emotion(self, image):
         """
         人脸表情检测
-        :param emotion_model: 检测模型
         :param image: 图片
         :return:
         """
