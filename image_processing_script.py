@@ -247,19 +247,23 @@ def get_redis_next_data(rds_name):
         if download_code == -1:  # 下载失败, 打回列表
             reg_count = params.get('reg_count', 0)
             if reg_count > 100:
-                redis_connect.lpush(conf.redis_image_making_error_name,
-                                    json.dumps({'error_type': "download_fail", "error_data": params}))
-
+                redis_connect.lpush(
+                    conf.redis_image_making_error_name,
+                    json.dumps({'error_type': "download_fail", "error_data": params}))
                 return None
             params['reg_count'] = reg_count + 1
             time.sleep(2)
             redis_connect.rpush(conf.redis_image_making_list_name, json.dumps(params))
-        elif download_code == -2:  # 未知错误
+        elif download_code == 1:  # 未知错误
+            params['image_path'] = image_path
+            return params
+        else:  # 图片处理失败
             img_type = res_data.get('img_type')
             oss_key = "error_image/{}".format(os.path.basename(image_path))
-            redis_connect.lpush(conf.redis_image_making_error_name,
-                                json.dumps(
-                                    {'error_code': -2, "img_type": img_type, "error_data": params, "oss_key": oss_key}))
+            redis_connect.lpush(
+                conf.redis_image_making_error_name,
+                json.dumps(
+                    {'error_code': download_code, "img_type": img_type, "error_data": params, "oss_key": oss_key}))
             oss_connect.put_object_from_file(oss_key, image_path)
             util.removefile(image_path)
 
@@ -277,10 +281,6 @@ def get_redis_next_data(rds_name):
                 'existFace': 0,
             }
             call_results_status = call_url_func_making(params.get('callback_url'), data_json=data_json)
-
-        else:  # 图片处理成功
-            params['image_path'] = image_path
-            return params
     return None
 
 
