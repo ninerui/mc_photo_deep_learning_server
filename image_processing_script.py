@@ -85,8 +85,13 @@ def call_url_func(user_id, callback_url, data_json):
                 logging.error("用户ID: {}, call_status: {}".format(user_id, call_res.text))
                 time.sleep(9)
                 call_count += 1
-        except Exception as e:
-            logging.exception(e)
+        except requests.exceptions.ConnectionError:
+            logging.error("请求服务器失败, 服务器连接失败!({})".format(callback_url))
+            call_count += 1
+            time.sleep(9)
+            continue
+        except:
+            logging.error("请求服务器失败!({})".format(callback_url))
             call_count += 1
             time.sleep(9)
             continue
