@@ -5,20 +5,25 @@ env_manage = {
     '172.16.172.127': 0,
     '172.16.172.130': 0,
 
-    # '172.16.172.124': 1,  # 47.99.176.149
     '172.16.178.202': 1,  # 47.111.147.203
-    '172.16.178.203': 1,  # 47.111.147.95
-    '172.16.0.157': 1,  # 121.40.164.235
+    '172.16.178.203': 1,  # 47.111.159.131
+    '172.16.178.210': 1,  # 47.111.154.70
 }
 
 image_process_thread_num_dict = {  # 打标线程数
     '172.16.172.127': 3,
+
+    '172.16.178.203': 3,
 }
 face_cluster_thread_num_dict = {  # 人脸聚类线程数
     '172.16.172.130': 2,
+
+    '172.16.178.210': 2,
 }
 wonderful_gen_thread_num_dict = {  # 精彩生成线程数
     '172.16.172.130': 1,
+
+    '172.16.178.210': 1,
 }
 log_dir = './log'
 tmp_image_dir = '../tmp_image_dir'
@@ -36,8 +41,29 @@ redis_wonderful_gen_name = "mc_wonderful_gen_list"
 # res_face_cluster_name = "mc_face_cluster_list"
 # res_image_making_name = "mc_image_making_list"
 
-handle_result_url = "http://172.16.181.135:8081/ai/updateFaceId"
-wonderful_callback_url = 'http://172.16.181.135:8081/ai/receiveWonderfulData'
+handle_result_url_dict = {
+    '0': [
+        "http://172.16.181.135:8081/ai/updateFaceId"
+    ],
+    '1': [
+        "http://172.16.107.2:8081/ai/updateFaceId",
+        "http://172.16.178.203:8081/ai/updateFaceId"
+    ]
+}
+wonderful_callback_url_dict = {
+    '0': [
+        "http://172.16.181.135:8081/ai/receiveWonderfulData"
+    ],
+    '1': [
+        "http://172.16.107.2:8081/ai/receiveWonderfulData",
+        "http://172.16.178.203:8081/ai/receiveWonderfulData"
+    ]
+}
+
+
+# handle_result_url = "http://172.16.181.135:8081/ai/updateFaceId"
+#
+# wonderful_callback_url = 'http://172.16.181.135:8081/ai/receiveWonderfulData'
 
 
 class AccountConf:

@@ -18,16 +18,18 @@ class IDCardClassify:
 
     def get_res_from_one(self, img):
         with self.sess.graph.as_default():
-            img = [np.expand_dims(cv2.cvtColor(cv2.resize(img, (64, 64)), cv2.COLOR_BGR2GRAY), axis=2)]
-            img = np.array(img) / 255.
-            pred = self.sess.run(self.softmax_tensor, {self.input: img}).tolist()
-            pred_ = pred[0]
-            label = pred_.index(max(pred_))
-            confidence = max(pred_)
-            if label == 0 and confidence > 0.99:
-                return ['身份证']
-            else:
-                return []
+            img = cv2.cvtColor(cv2.resize(img, (64, 64)), cv2.COLOR_BGR2GRAY)
+            for i in range(4):
+                img = np.rot90(img, k=i)
+                img = [np.expand_dims(img, axis=2)]
+                img = np.array(img) / 255.
+                pred = self.sess.run(self.softmax_tensor, {self.input: img}).tolist()
+                pred_ = pred[0]
+                if pred_[0] > 0.999:
+                    return ['身份证']
+                elif pred_[0] < 0.5:
+                    return []
+        return []
 
     def get_res(self, img):
         with self.sess.graph.as_default():

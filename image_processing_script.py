@@ -4,6 +4,7 @@ import json
 import pickle
 import logging
 import threading
+from random import choice
 from urllib.request import urlretrieve
 
 import cv2
@@ -195,10 +196,11 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
                 logging.info('用户ID: {}, 聚类人脸耗时: {}'.format(user_id, time.time() - start_cluster_time))
 
                 # 回调下载成功列表
+                handle_result_url = choice(handle_result_url_list)
                 logging.info(
                     "用户ID: {}, 开始回调 {} 结果, 共 {} 条数据...".format(
-                        user_id, conf.handle_result_url, len(call_res_dict)))
-                call_results_status = call_url_func(user_id, conf.handle_result_url, data_json={
+                        user_id, handle_result_url, len(call_res_dict)))
+                call_results_status = call_url_func(user_id, handle_result_url, data_json={
                     'userId': user_id,
                     'content': call_res_dict
                 })
@@ -208,7 +210,7 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
                     oss_connect.put_object(
                         "face_cluster_call_error_data/{}/call_result_error.pkl".format(user_id),
                         pickle.dumps({
-                            "handle_result_url": conf.handle_result_url,
+                            "handle_result_url": handle_result_url,
                             "user_id": user_id,
                             "call_res_dict": call_res_dict,
                         }))
@@ -561,7 +563,7 @@ class GenerationWonderfulImageThread(threading.Thread):
                 media_id = params.get("mediaId")
                 image_url = params.get('imageUrl', None)
                 image_local_path = params.get('imageLocalPath', None)
-                callback_url = params.get('callbackUrl', conf.wonderful_callback_url)
+                callback_url = params.get('callbackUrl', choice(wonderful_callback_url_list))
                 if image_url is not None:
                     image_path = self.download_image(image_url)
                 else:
@@ -639,6 +641,10 @@ if __name__ == '__main__':
     image_process_thread_num = conf.image_process_thread_num_dict.get(local_ip, 0)
     wonderful_gen_thread_num = conf.wonderful_gen_thread_num_dict.get(local_ip, 0)
     face_cluster_thread_num = conf.face_cluster_thread_num_dict.get(local_ip, 0)
+
+    handle_result_url_list = conf.handle_result_url_dict.get(str(env_code))
+    wonderful_callback_url_list = conf.wonderful_callback_url_dict.get(str(env_code))
+
     if image_process_thread_num > 0:
         oi_5000_model = image_making_interface.ImageMakingWithOpenImage()
         fd_ssd_detection = face_detection_interface.FaceDetectionWithSSDMobilenet()
