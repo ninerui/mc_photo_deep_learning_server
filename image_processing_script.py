@@ -576,13 +576,14 @@ class GenerationWonderfulImageThread(threading.Thread):
 
                 tmp_time = time.time()
                 if int(wonderful_type) == 11:  # 风格化照片
-                    image = imageio.imread(image_path)
-                    scale = min(1920. / max(image.shape), 1.)
-                    image = np.array(
-                        Image.fromarray(image).resize((int(image.shape[1] * scale), int(image.shape[0] * scale))))
-                    image = np.reshape(image, [1, image.shape[0], image.shape[1], 3]) / 255
-                    output = image_enhancement_model.get_image(image)
-                    imageio.imwrite(output_path, output[0] * 255)
+                    image_enhancement_interface.get_enjancement_img(image_path, output_path)
+                    # image = imageio.imread(image_path)
+                    # scale = min(1920. / max(image.shape), 1.)
+                    # image = np.array(
+                    #     Image.fromarray(image).resize((int(image.shape[1] * scale), int(image.shape[0] * scale))))
+                    # image = np.reshape(image, [1, image.shape[0], image.shape[1], 3]) / 255
+                    # output = image_enhancement_model.get_image(image)
+                    # imageio.imwrite(output_path, output[0] * 255)
                 elif int(wonderful_type) == 12:  # 自动上色
                     autocolor_model.get_result_image(image_path, output_path)
                     # colorizer_model.get_result_path(image_path, output_path, render_factor=30)
@@ -643,7 +644,7 @@ if __name__ == '__main__':
 
     if conf.wonderful_gen_thread_num > 0:
         autocolor_model = ImageAutoColor()
-        image_enhancement_model = image_enhancement_interface.AIChallengeWithDPEDSRCNN()
+        # image_enhancement_model = image_enhancement_interface.AIChallengeWithDPEDSRCNN()
         pose_estimator_model = TfPoseEstimator('./models/pose_estimator_models.pb', target_size=(432, 368))
         create_local_color = ImageLocalColor()
 
