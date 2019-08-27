@@ -7,10 +7,11 @@ import threading
 from urllib.request import urlretrieve
 
 import cv2
-import imageio
+# import imageio
 import requests
 import numpy as np
-from PIL import Image, ImageFile
+# from PIL import Image
+from PIL import ImageFile
 
 import conf
 from utils import connects, util, image_tools
@@ -19,7 +20,7 @@ from dl_module import face_emotion_interface
 from dl_module import zhouwen_image_card_classify_interface
 from dl_module import image_making_interface, face_detection_interface, face_recognition_interface
 from dl_module import image_enhancement_interface
-from dl_module.human_pose_estimation_interface import TfPoseEstimator
+# from dl_module.human_pose_estimation_interface import TfPoseEstimator
 from dl_module.zhouwen_detect_blur import detection_blur
 from dl_module.image_local_color_interface import ImageLocalColor
 from dl_module.image_autocolor_interface import ImageAutoColor
@@ -635,29 +636,32 @@ if __name__ == '__main__':
     # r_object.set_content()
 
     logging.info("加载全局模型...")
-    if conf.image_process_thread_num > 0:
+    image_process_thread_num = conf.image_process_thread_num_dict.get(local_ip, 0)
+    wonderful_gen_thread_num = conf.wonderful_gen_thread_num_dict.get(local_ip, 0)
+    face_cluster_thread_num = conf.face_cluster_thread_num_dict.get(local_ip, 0)
+    if image_process_thread_num > 0:
         oi_5000_model = image_making_interface.ImageMakingWithOpenImage()
         fd_ssd_detection = face_detection_interface.FaceDetectionWithSSDMobilenet()
         fd_mtcnn_detection = face_detection_interface.FaceDetectionWithMtcnnTF(steps_threshold=[0.6, 0.7, 0.8])
         is_idcard_model = zhouwen_image_card_classify_interface.IDCardClassify()
         object_detection_model = object_detection_interface.ObjectDetectionWithSSDMobilenetV2()
 
-    if conf.wonderful_gen_thread_num > 0:
+    if wonderful_gen_thread_num > 0:
         autocolor_model = ImageAutoColor()
         # image_enhancement_model = image_enhancement_interface.AIChallengeWithDPEDSRCNN()
-        pose_estimator_model = TfPoseEstimator('./models/pose_estimator_models.pb', target_size=(432, 368))
+        # pose_estimator_model = TfPoseEstimator('./models/pose_estimator_models.pb', target_size=(432, 368))
         create_local_color = ImageLocalColor()
 
     # 创建线程并开始图片打标线程
-    for i in range(conf.image_process_thread_num):
+    for i in range(image_process_thread_num):
         ImageProcessingThread("Thread_{}".format(i)).start()
 
     # 创建线程并开始人脸聚类线程
-    for i in range(conf.face_cluster_thread_num):
+    for i in range(face_cluster_thread_num):
         FaceClusterThread("face_cluster_{}".format(i)).start()
 
     # 创建并开始精彩生成线程
-    for i in range(conf.wonderful_gen_thread_num):
+    for i in range(wonderful_gen_thread_num):
         GenerationWonderfulImageThread("wonderful_generation_{}".format(i)).start()
 
     while True:

@@ -8,21 +8,22 @@ env_manage = {
     # '172.16.172.124': 1,  # 47.99.176.149
     '172.16.178.202': 1,  # 47.111.147.203
     '172.16.178.203': 1,  # 47.111.147.95
+    '172.16.0.157': 1,  # 121.40.164.235
+}
+
+image_process_thread_num_dict = {  # 打标线程数
+    '172.16.172.127': 3,
+}
+face_cluster_thread_num_dict = {  # 人脸聚类线程数
+    '172.16.172.130': 2,
+}
+wonderful_gen_thread_num_dict = {  # 精彩生成线程数
+    '172.16.172.130': 1,
 }
 log_dir = './log'
 tmp_image_dir = '../tmp_image_dir'
 
-image_process_thread_num = 4
-face_cluster_thread_num = 1
-wonderful_gen_thread_num = 0
-
-# 模块开关控制
-image_making_switch = True
-face_cluster_switch = True
-image_quality_assessment_switch = False
-id_classify_switch = True
-
-redis_image_queue_name = "mc_image_queue_list"
+# redis_image_queue_name = "mc_image_queue_list"
 redis_face_info_name = "mc_face_info_list-{}"
 redis_face_info_key_set = "mc_face_info_key_set"
 redis_face_info_key_list = "mc_face_info_key_list"
@@ -32,9 +33,8 @@ redis_image_making_set_name = "mc_image_making_set"
 redis_image_making_error_name = "mc_image_making_error"
 redis_wonderful_gen_name = "mc_wonderful_gen_list"
 
-res_face_cluster_name = "mc_face_cluster_list"
-res_image_making_name = "mc_image_making_list"
-
+# res_face_cluster_name = "mc_face_cluster_list"
+# res_image_making_name = "mc_image_making_list"
 
 handle_result_url = "http://172.16.181.135:8081/ai/updateFaceId"
 wonderful_callback_url = 'http://172.16.181.135:8081/ai/receiveWonderfulData'
@@ -63,17 +63,6 @@ class AccountConf:
             # self.endpoint = 'http://oss-cn-shenzhen.aliyuncs.com'
             self.bucket = 'mc-photo-face-ai'
             self.host = 'oss-cn-hangzhou-internal.aliyuncs.com'
-            # self.accessKeyId = 'LTAIu0Zf15FLBq4R'
-            # self.accessKeySecret = 'n9zAUBrXhf2nFilRowvPqkNOrw8u75'
-            # # endpoint = 'http://oss-cn-shenzhen-internal.aliyuncs.com'
-            # self.endpoint = 'http://oss-cn-shenzhen.aliyuncs.com'
-            # self.bucket = 'mc-photo-ai-face'
-            # self.host = 'oss-cn-shenzhen-internal.aliyuncs.com'
-            # redis addr
-            # self.res_host = 'r-bp1s3ywv637g7qrzfy.redis.rds.aliyuncs.com'
-            # self.res_port = 6379
-            # self.res_decode_responses = True
-            # self.res_password = "ADe867xb1r"
             self.res_host = 'r-bp1s3ywv637g7qrzfy.redis.rds.aliyuncs.com'
             self.res_port = 6379
             self.res_decode_responses = True
