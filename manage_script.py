@@ -68,16 +68,16 @@ def main():
                     return
                 elif cmd == 'restart':
                     if hour == 0:
-                        util.makedirs("./log/face_cluster_log")
+                        util.makedirs("./log/main_thread_logs")
                         sub_datetime_str = (sub_datetime + datetime.timedelta(0 - 1)).strftime('%Y-%m-%d')
                         # 分割日志
                         shutil.move(
                             log_file,
-                            './log/face_cluster_log/face_cluster_script.{}.log'.format(sub_datetime_str))
+                            './log/main_thread_logs/image_processing_script.{}.log'.format(sub_datetime_str))
                         shutil.move(
                             log_file + ".ERROR",
-                            './log/face_cluster_log/face_cluster_script.{}.log.ERROR'.format(sub_datetime_str))
-                        clean_log("./log/face_cluster_log")
+                            './log/main_thread_logs/image_processing_script.{}.log.ERROR'.format(sub_datetime_str))
+                        clean_log("./log/main_thread_logs")
                     start_script(script_name)
                     return
                 return
