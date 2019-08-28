@@ -47,7 +47,7 @@ handle_result_url_dict = {
     ],
     '1': [
         "http://172.16.107.2:8081/ai/updateFaceId",
-        "http://172.16.178.203:8081/ai/updateFaceId"
+        "http://172.16.178.209:8081/ai/updateFaceId"
     ]
 }
 wonderful_callback_url_dict = {
@@ -56,7 +56,7 @@ wonderful_callback_url_dict = {
     ],
     '1': [
         "http://172.16.107.2:8081/ai/receiveWonderfulData",
-        "http://172.16.178.203:8081/ai/receiveWonderfulData"
+        "http://172.16.178.209:8081/ai/receiveWonderfulData"
     ]
 }
 
