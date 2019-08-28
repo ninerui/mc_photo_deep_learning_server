@@ -90,8 +90,10 @@ def call_url_func(user_id, callback_url, data_json):
             call_count += 1
             time.sleep(9)
             continue
-        except:
-            logging.error("请求服务器失败!({})".format(callback_url))
+        except Exception as e:
+            logging.error("请求服务器失败!({})({})".format(callback_url, e))
+            # logging.exception(e)
+            # logging.error("请求服务器失败!({})".format(callback_url))
             call_count += 1
             time.sleep(9)
             continue
@@ -221,7 +223,7 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
                         }))
                 oss_connect.put_object(oss_face_id_with_label_file, pickle.dumps(face_id_label_dict))
                 oss_connect.put_object(oss_face_data_file, pickle.dumps(face_data))
-                oss_connect.put_object(oss_suc_img_list_file, pickle.dumps(success_image_set | suc_parser_img_set))
+                oss_connect.put_object(oss_suc_img_list_file, pickle.dumps(success_image_set | set(suc_parser_img_set)))
         except Exception as e:
             self.log_exception(e)
             return
