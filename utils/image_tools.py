@@ -75,21 +75,27 @@ def heic2jpg(src_file, result_file):
 
 
 def IsValidImage(file):
-    bValid = True
-    if isinstance(file, (str, os.PathLike)):
-        fileObj = open(file, 'rb')
-    else:
-        fileObj = file
-    buf = fileObj.read()
-    if buf[6:10] in (b'JFIF', b'Exif'):  # jpgͼƬ
-        if not buf.rstrip(b'\0\r\n').endswith(b'\xff\xd9'):
-            bValid = False
-    else:
-        try:
-            Image.open(fileObj).verify()
-        except:
-            bValid = False
-    return bValid
+    valid = True
+    try:
+        Image.open(file).load()
+    except OSError:
+        valid = False
+    return valid
+    # bValid = True
+    # if isinstance(file, (str, os.PathLike)):
+    #     fileObj = open(file, 'rb')
+    # else:
+    #     fileObj = file
+    # buf = fileObj.read()
+    # if buf[6:10] in (b'JFIF', b'Exif'):  # jpgͼƬ
+    #     if not buf.rstrip(b'\0\r\n').endswith(b'\xff\xd9'):
+    #         bValid = False
+    # else:
+    #     try:
+    #         Image.open(fileObj).verify()
+    #     except:
+    #         bValid = False
+    # return bValid
 
 
 def download_image(image_url, output_dir):
