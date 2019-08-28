@@ -163,9 +163,11 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
         try:
             face_data = []
             success_image_set = set()
+            logging.info("开始取数据: {}".format(face_user_key))
             while True:
                 data_ = redis_connect.rpop(face_user_key)
                 if not data_:
+                    logging.info("数据取完: {}".format(face_user_key))
                     break
                 data_ = json.loads(data_)
                 media_id = data_.get('media_id', None)
