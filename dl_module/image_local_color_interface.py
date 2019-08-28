@@ -51,7 +51,7 @@ class DeepLabModel(object):
 
 class ImageLocalColor(object):
     def __init__(self):
-        self.MODEL = DeepLabModel('./models/deeplabv3_cityscapes_train_2018_02_06.pb')
+        self.MODEL = DeepLabModel('./models/deeplabv3_pascal_trainval_2018_01_04.pb')
 
     def get_result(self, input, output):
         original_im = Image.open(input)

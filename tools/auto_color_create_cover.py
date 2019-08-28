@@ -1,6 +1,6 @@
-from __future__ import division
 # !/usr/bin/python
 # -*- coding: UTF-8 -*-
+from __future__ import division
 import sys
 import traceback
 
