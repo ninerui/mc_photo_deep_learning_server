@@ -18,14 +18,14 @@ def get_cmd_args(argv):
     return parser.parse_args(argv)
 
 
-def get_script_status(script_name):
-    content = "ps -ef |grep {} |grep -v grep |awk '{{print $2}}'".format(script_name)
+def get_script_status(script_name_):
+    content = "ps -ef |grep {} |grep -v grep |awk '{{print $2}}'".format(script_name_)
     res = subprocess.Popen(content, stdout=subprocess.PIPE, shell=True)
     return res.stdout.readlines()
 
 
-def start_script(script_name):
-    content = "nohup python {} >/dev/null 2>&1 &".format(script_name)
+def start_script(script_name_):
+    content = "nohup python {} >/dev/null 2>&1 &".format(script_name_)
     subprocess.Popen(content, stdout=subprocess.PIPE, shell=True)
 
 

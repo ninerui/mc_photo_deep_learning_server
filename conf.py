@@ -18,7 +18,7 @@ image_process_thread_num_dict = {  # 打标线程数
 face_cluster_thread_num_dict = {  # 人脸聚类线程数
     '172.16.172.130': 2,
 
-    '172.16.178.210': 2,
+    '172.16.178.210': 3,
 }
 wonderful_gen_thread_num_dict = {  # 精彩生成线程数
     '172.16.172.130': 1,
