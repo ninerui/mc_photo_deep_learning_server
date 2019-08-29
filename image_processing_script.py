@@ -65,7 +65,7 @@ def call_url_func(callback_url, data_json):
     while call_count < 20:
         try:
             call_res = requests.post(callback_url, json=data_json)
-            logging.info("回调地址: {}, 回调结果: {}".format(callback_url, call_res.content))
+            logging.info("回调地址: {}, 回调结果: {}".format(callback_url, call_res.text))
             if int(call_res.status_code) == 200:
                 call_suc_status = True
                 return call_suc_status
