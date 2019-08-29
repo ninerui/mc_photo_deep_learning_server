@@ -24,14 +24,14 @@ from dl_module.image_local_color_interface import ImageLocalColor
 from dl_module.image_autocolor_interface import ImageAutoColor
 from dl_module import object_detection_interface
 
-try:
-    import absl.logging
-
-    logging.root.removeHandler(absl.logging._absl_handler)
-    absl.logging._warn_preinit_stderr = False
-except Exception as e1:
-    print(e1)
-    pass
+# try:
+#     import absl.logging
+#
+#     logging.root.removeHandler(absl.logging._absl_handler)
+#     absl.logging._warn_preinit_stderr = False
+# except Exception as e1:
+#     print(e1)
+#     pass
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -119,16 +119,6 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
     def __init__(self, thread_name):
         threading.Thread.__init__(self)
         self.thread_name = thread_name
-        self.log_content = "线程名: {}".format(thread_name) + ", {}"
-
-    def log_error(self, content):
-        logging.error(self.log_content.format(content))
-
-    def log_info(self, content):
-        logging.info(self.log_content.format(content))
-
-    def log_exception(self, content):
-        logging.exception(self.log_content.format(content))
 
     def main_func(self, fe_detection, fr_arcface):
         face_user_key = redis_connect.rpop(conf.redis_face_info_key_list)
@@ -221,7 +211,7 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
                 oss_connect.put_object(oss_face_data_file, pickle.dumps(face_data))
                 oss_connect.put_object(oss_suc_img_list_file, pickle.dumps(success_image_set | set(suc_parser_img_set)))
         except Exception as e:
-            self.log_exception(e)
+            logging.exception(e)
             return
         finally:
             redis_connect.delete(face_status)
@@ -230,12 +220,12 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
         fr_arcface = face_recognition_interface.FaceRecognitionWithArcFace()
         fe_detection = face_emotion_interface.FaceEmotionKeras()  # 表情检测模型, 不能跨线程
-        self.log_info("人脸聚类线程已启动...")
+        logging.info("人脸聚类线程已启动...")
         while True:
             try:
                 self.main_func(fe_detection, fr_arcface)
             except Exception as e:
-                self.log_exception(e)
+                logging.exception(e)
                 continue
             finally:
                 check_restart(2)
@@ -473,22 +463,12 @@ class GenerationWonderfulImageThread(threading.Thread):
     def __init__(self, thread_name):
         threading.Thread.__init__(self)
         self.thread_name = thread_name
-        self.log_content = "线程名: {}".format(thread_name) + ", {}"
         time.sleep(0.01)
-
-    def log_error(self, content):
-        logging.error(self.log_content.format(content))
-
-    def log_info(self, content):
-        logging.info(self.log_content.format(content))
-
-    def log_exception(self, content):
-        logging.exception(self.log_content.format(content))
 
     def check_restart(self, params_count):
         reboot_code = redis_connect.get(local_ip)
         if reboot_code == '1':
-            self.log_info('发现服务需要重启, 重启代码: {}'.format(reboot_code))
+            logging.info('发现服务需要重启, 重启代码: {}'.format(reboot_code))
             raise SystemExit
         time.sleep(9 / max(1, params_count))
 
@@ -498,7 +478,7 @@ class GenerationWonderfulImageThread(threading.Thread):
         try:
             urlretrieve(image_url, image_path)
         except Exception as e:
-            self.log_exception("{}下载失败\n{}".format(image_url, e))
+            logging.info("{}下载失败\n{}".format(image_url, e))
             return None
         image_id, image_type = os.path.splitext(image_name)
         if image_type.lower() == '.heic':
@@ -506,21 +486,21 @@ class GenerationWonderfulImageThread(threading.Thread):
                 new_img_path = os.path.join(conf.tmp_image_dir, "{}.jpg".format(image_id))
                 tmp_time = time.time()
                 image_tools.heic2jpg(image_path, new_img_path)
-                self.log_info("{}转jpg耗时: {}".format(image_name, time.time() - tmp_time))
+                logging.info("{}转jpg耗时: {}".format(image_name, time.time() - tmp_time))
                 if os.path.isfile(new_img_path):
                     util.removefile(image_path)
                     return new_img_path
                 else:
-                    self.log_exception("{}转换失败".format(image_url))
+                    logging.error("{}转换失败".format(image_url))
                     return None
             except Exception as e:
-                self.log_exception("{}转换失败\n{}".format(image_url, e))
+                logging.error("{}转换失败\n{}".format(image_url, e))
                 return None
         else:
             return image_path
 
     def run(self):
-        self.log_info("精彩生成线程已启动...")
+        logging.info("精彩生成线程已启动...")
         while True:
             try:
                 params_count = redis_connect.llen(conf.redis_wonderful_gen_name)
@@ -529,7 +509,7 @@ class GenerationWonderfulImageThread(threading.Thread):
                     self.check_restart(params_count)
                     continue
                 params = json.loads(params)
-                self.log_info("开始生成精彩, 剩余数据: {} 条, 当前数据: {}".format(params_count - 1, params))
+                logging.info("开始生成精彩, 剩余数据: {} 条, 当前数据: {}".format(params_count - 1, params))
                 wonderful_type = params.get("type")
                 user_id = params.get("userId")
                 media_id = params.get("mediaId")
@@ -557,7 +537,7 @@ class GenerationWonderfulImageThread(threading.Thread):
                     autocolor_model.get_result_image(image_path, output_path)
                 elif int(wonderful_type) == 9:  # 局部彩色
                     create_local_color.get_result(image_path, output_path)
-                self.log_info("wonderful_type: {}, 耗时: {}".format(wonderful_type, time.time() - tmp_time))
+                logging.info("wonderful_type: {}, 耗时: {}".format(wonderful_type, time.time() - tmp_time))
                 oss_connect.put_object_from_file(oss_image_path, output_path)
                 util.removefile(image_path)
                 util.removefile(output_path)
@@ -572,8 +552,7 @@ class GenerationWonderfulImageThread(threading.Thread):
                 })
 
             except Exception as e:
-                self.log_exception(e)
-                self.log_error("风格化图片失败!")
+                logging.exception(e)
             finally:
                 self.check_restart(9)
 
