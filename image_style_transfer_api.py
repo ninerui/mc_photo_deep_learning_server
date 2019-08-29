@@ -73,7 +73,7 @@ def image_style_transfer():
             return json.dumps({
                 "download_url": os.path.join("http://{}/download".format(local_ip), os.path.basename(image_url))
             })
-        except:
+        except Exception as e:
             import traceback
             print(traceback.print_exc())
             return "error"

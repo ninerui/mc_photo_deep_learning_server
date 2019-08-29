@@ -8,10 +8,8 @@ from random import choice
 from urllib.request import urlretrieve
 
 import cv2
-# import imageio
 import requests
 import numpy as np
-# from PIL import Image
 from PIL import ImageFile
 
 import conf
@@ -21,7 +19,6 @@ from dl_module import face_emotion_interface
 from dl_module import zhouwen_image_card_classify_interface
 from dl_module import image_making_interface, face_detection_interface, face_recognition_interface
 from dl_module import image_enhancement_interface
-# from dl_module.human_pose_estimation_interface import TfPoseEstimator
 from dl_module.zhouwen_detect_blur import detection_blur
 from dl_module.image_local_color_interface import ImageLocalColor
 from dl_module.image_autocolor_interface import ImageAutoColor
@@ -71,54 +68,51 @@ def image_resize(image):
     return image, min(f, 1.)
 
 
-def call_url_func(user_id, callback_url, data_json):
+def call_url_func(callback_url, data_json):
     call_count = 0
     call_suc_status = False
     while call_count < 20:
         try:
             call_res = requests.post(callback_url, json=data_json)
-            if int(call_res.status_code) == 200:
-                call_suc_status = True
-                logging.info("用户ID: {}, call_status: {}".format(user_id, call_res.text))
-                return call_suc_status
-            else:
-                logging.error("用户ID: {}, call_status: {}".format(user_id, call_res.text))
-                time.sleep(9)
-                call_count += 1
-        except requests.exceptions.ConnectionError:
-            logging.error("请求服务器失败, 服务器连接失败!({})".format(callback_url))
-            call_count += 1
-            time.sleep(9)
-            continue
-        except Exception as e:
-            logging.error("请求服务器失败!({})({})".format(callback_url, e))
-            # logging.exception(e)
-            # logging.error("请求服务器失败!({})".format(callback_url))
-            call_count += 1
-            time.sleep(9)
-            continue
-    return call_suc_status
-
-
-def call_url_func_making(callback_url, data_json):
-    call_count = 0
-    call_suc_status = False
-    while call_count < 20:
-        try:
-            call_res = requests.post(callback_url, json=data_json)
+            logging.info("回调地址: {}, 回调结果: {}".format(callback_url, call_res.text))
             if int(call_res.status_code) == 200:
                 call_suc_status = True
                 return call_suc_status
             else:
-                logging.error("call_status: {}".format(call_res.text))
                 time.sleep(9)
                 call_count += 1
+        except requests.exceptions.ConnectionError as e:
+            logging.error("回调地址: {}, 错误信息: {}".format(callback_url, e))
+            call_count += 1
+            time.sleep(9)
+            continue
         except Exception as e:
             logging.exception(e)
             call_count += 1
             time.sleep(9)
             continue
     return call_suc_status
+
+
+# def call_url_func_making(callback_url, data_json):
+#     call_count = 0
+#     call_suc_status = False
+#     while call_count < 20:
+#         try:
+#             call_res = requests.post(callback_url, json=data_json)
+#             if int(call_res.status_code) == 200:
+#                 call_suc_status = True
+#                 return call_suc_status
+#             else:
+#                 logging.error("call_status: {}".format(call_res.text))
+#                 time.sleep(9)
+#                 call_count += 1
+#         except Exception as e:
+#             logging.exception(e)
+#             call_count += 1
+#             time.sleep(9)
+#             continue
+#     return call_suc_status
 
 
 class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
@@ -209,7 +203,7 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
                 logging.info(
                     "用户ID: {}, 开始回调 {} 结果, 共 {} 条数据...".format(
                         user_id, handle_result_url, len(call_res_dict)))
-                call_results_status = call_url_func(user_id, handle_result_url, data_json={
+                call_results_status = call_url_func(handle_result_url, data_json={
                     'userId': user_id,
                     'content': call_res_dict
                 })
@@ -217,7 +211,7 @@ class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
                     # 回调失败, 保存结果
                     logging.error("用户ID: {}, 结果列表回调失败, 保存结果至oss!".format(user_id))
                     oss_connect.put_object(
-                        "face_cluster_call_error_data/{}/call_result_error.pkl".format(user_id),
+                        "face_cluster_call_error_data/{}/call_result_error_{}.pkl".format(user_id, util.get_str_time()),
                         pickle.dumps({
                             "handle_result_url": handle_result_url,
                             "user_id": user_id,
@@ -292,7 +286,7 @@ def get_redis_next_data(rds_name):
                 "isLocalColor": 0,
                 'existFace': 0,
             }
-            call_results_status = call_url_func_making(params.get('callback_url'), data_json=data_json)
+            call_url_func(params.get('callback_url'), data_json=data_json)
     return None
 
 
@@ -300,36 +294,6 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
     def __init__(self, thread_name):
         threading.Thread.__init__(self)
         self.thread_name = thread_name
-        self.log_content = "线程名: {}".format(thread_name) + ", {}"
-
-    def log_error(self, content):
-        logging.error(self.log_content.format(content))
-
-    def log_info(self, content):
-        logging.info(self.log_content.format(content))
-
-    def log_exception(self, content):
-        logging.exception(self.log_content.format(content))
-
-    def call_url_func(self, callback_url, data_json):
-        call_count = 0
-        call_suc_status = False
-        while call_count < 20:
-            try:
-                call_res = requests.post(callback_url, json=data_json)
-                if int(call_res.status_code) == 200:
-                    call_suc_status = True
-                    return call_suc_status
-                else:
-                    self.log_error("call_status: {}".format(call_res.text))
-                    time.sleep(9)
-                    call_count += 1
-            except Exception as e:
-                logging.exception(e)
-                call_count += 1
-                time.sleep(9)
-                continue
-        return call_suc_status
 
     def parser_face(self, user_id, media_id, image):
         face_count = 0
@@ -397,7 +361,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 }))
                 face_count += 1
         except Exception as e:
-            self.log_exception("{}上传失败\n{}".format(media_id, e))
+            logging.exception("{}上传失败\n{}".format(media_id, e))
         finally:
             return 0
 
@@ -419,7 +383,8 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 if (abs((xmax - xmin) / 2. + xmin - 0.5) < 0.1) and (ymin < 0.4) and (ymax > 0.6):
                     tiaojian = True
         except Exception as e:
-            self.log_exception(e)
+            logging.exception(e)
+            # self.log_exception(e)
         finally:
             if res == 1 and tiaojian:
                 return 1
@@ -435,8 +400,6 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         media_id = params_data.get('media_id')
         user_id = params_data.get('user_id')
         image_url = params_data.get('image_url')
-        # self.log_info("{} 开始处理, 还剩{}条数据".format(
-        #     os.path.basename(image_url), redis_connect.llen(conf.redis_image_making_list_name)))
 
         time_dl = time.time() - start_time
         # 开始图片打标
@@ -471,7 +434,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             "isLocalColor": is_local_color,
             'existFace': min(face_count, 127),
         }
-        call_results_status = self.call_url_func(params_data.get('callback_url'), data_json=data_json)
+        call_results_status = call_url_func(params_data.get('callback_url'), data_json=data_json)
 
         if is_black_and_white == 1:  # 是黑白图片
             oss_key = "wonderful_tmp_dir/{}".format(os.path.basename(image_path))
@@ -485,7 +448,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         util.removefile(image_path)
 
         redis_connect.srem(conf.redis_image_making_set_name, media_id)
-        self.log_info("{} total time: {}, dl time: {}, making time: {}, ic time: {}, face time: {}, od_time: {}".format(
+        logging.info("{} total time: {}, dl time: {}, making time: {}, ic time: {}, face time: {}, od_time: {}".format(
             os.path.basename(image_url), time.time() - start_time, time_dl, time_making, time_ic, time_face, time_od))
 
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
@@ -494,7 +457,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             try:
                 self.main_func()
             except Exception as e:
-                self.log_exception(e)
+                logging.exception(e)
                 continue
             finally:
                 check_restart(1)
@@ -590,16 +553,8 @@ class GenerationWonderfulImageThread(threading.Thread):
                 tmp_time = time.time()
                 if int(wonderful_type) == 11:  # 风格化照片
                     image_enhancement_interface.get_enjancement_img(image_path, output_path)
-                    # image = imageio.imread(image_path)
-                    # scale = min(1920. / max(image.shape), 1.)
-                    # image = np.array(
-                    #     Image.fromarray(image).resize((int(image.shape[1] * scale), int(image.shape[0] * scale))))
-                    # image = np.reshape(image, [1, image.shape[0], image.shape[1], 3]) / 255
-                    # output = image_enhancement_model.get_image(image)
-                    # imageio.imwrite(output_path, output[0] * 255)
                 elif int(wonderful_type) == 12:  # 自动上色
                     autocolor_model.get_result_image(image_path, output_path)
-                    # colorizer_model.get_result_path(image_path, output_path, render_factor=30)
                 elif int(wonderful_type) == 9:  # 局部彩色
                     create_local_color.get_result(image_path, output_path)
                 self.log_info("wonderful_type: {}, 耗时: {}".format(wonderful_type, time.time() - tmp_time))
@@ -608,7 +563,7 @@ class GenerationWonderfulImageThread(threading.Thread):
                 util.removefile(output_path)
                 if int(wonderful_type) == 12:
                     continue
-                call_url_func(user_id, callback_url, data_json={
+                call_url_func(callback_url, data_json={
                     "ossKey": oss_image_path,
                     "type": wonderful_type,
                     "oldMediaId": media_id,
