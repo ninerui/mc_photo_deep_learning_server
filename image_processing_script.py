@@ -24,15 +24,6 @@ from dl_module.image_local_color_interface import ImageLocalColor
 from dl_module.image_autocolor_interface import ImageAutoColor
 from dl_module import object_detection_interface
 
-# try:
-#     import absl.logging
-#
-#     logging.root.removeHandler(absl.logging._absl_handler)
-#     absl.logging._warn_preinit_stderr = False
-# except Exception as e1:
-#     print(e1)
-#     pass
-
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
@@ -74,7 +65,7 @@ def call_url_func(callback_url, data_json):
     while call_count < 20:
         try:
             call_res = requests.post(callback_url, json=data_json)
-            logging.info("回调地址: {}, 回调结果: {}".format(callback_url, call_res.text))
+            logging.info("回调地址: {}, 回调结果: {}".format(callback_url, call_res.content))
             if int(call_res.status_code) == 200:
                 call_suc_status = True
                 return call_suc_status
@@ -92,27 +83,6 @@ def call_url_func(callback_url, data_json):
             time.sleep(9)
             continue
     return call_suc_status
-
-
-# def call_url_func_making(callback_url, data_json):
-#     call_count = 0
-#     call_suc_status = False
-#     while call_count < 20:
-#         try:
-#             call_res = requests.post(callback_url, json=data_json)
-#             if int(call_res.status_code) == 200:
-#                 call_suc_status = True
-#                 return call_suc_status
-#             else:
-#                 logging.error("call_status: {}".format(call_res.text))
-#                 time.sleep(9)
-#                 call_count += 1
-#         except Exception as e:
-#             logging.exception(e)
-#             call_count += 1
-#             time.sleep(9)
-#             continue
-#     return call_suc_status
 
 
 class FaceClusterThread(threading.Thread):  # 继承父类threading.Thread
