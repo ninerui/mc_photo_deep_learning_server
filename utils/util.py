@@ -1,4 +1,5 @@
 import os
+import time
 import socket
 import logging
 import logging.handlers
@@ -13,6 +14,10 @@ def makedirs(path):
 def removefile(path):
     if os.path.isfile(path):
         os.remove(path)
+
+
+def get_str_time():
+    return time.strftime("%Y%m%d%H%M%S", time.localtime())
 
 
 def get_local_ip():

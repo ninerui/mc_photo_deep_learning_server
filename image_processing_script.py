@@ -582,7 +582,8 @@ class GenerationWonderfulImageThread(threading.Thread):
                     oss_connect.delete_object(oss_key)
                 assert os.path.isfile(image_path)
 
-                output_path = os.path.join(conf.tmp_image_dir, "{}_{}.jpg".format(media_id, wonderful_type))
+                output_path = os.path.join(conf.tmp_image_dir, "{}_{}_{}.jpg".format(
+                    media_id, wonderful_type, util.get_str_time()))
                 oss_image_path = "wonderful_image/{}/{}/{}_{}.jpg".format(
                     wonderful_type, user_id, media_id, wonderful_type)
 
