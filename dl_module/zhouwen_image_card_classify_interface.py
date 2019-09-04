@@ -25,7 +25,8 @@ class IDCardClassify:
                 img_ = np.array(img_) / 255.
                 pred = self.sess.run(self.softmax_tensor, {self.input: img_}).tolist()
                 pred_ = pred[0]
-                if pred_[0] > 0.999:
+                # print(pred)
+                if pred_[0] >= 0.9999:
                     return ['身份证']
                 elif pred_[0] < 0.5:
                     return []

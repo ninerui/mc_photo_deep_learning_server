@@ -16,10 +16,10 @@ import conf
 from utils import connects, util, image_tools
 from dl_module import face_cluster_interface
 from dl_module import face_emotion_interface
-from dl_module import zhouwen_image_card_classify_interface
 from dl_module import image_making_interface, face_detection_interface, face_recognition_interface
 from dl_module import image_enhancement_interface
 from dl_module.zhouwen_detect_blur import detection_blur
+from dl_module import zhouwen_image_card_classify_interface
 from dl_module.image_local_color_interface import ImageLocalColor
 from dl_module.image_autocolor_interface import ImageAutoColor
 from dl_module import object_detection_interface
@@ -344,7 +344,6 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                     tiaojian = True
         except Exception as e:
             logging.exception(e)
-            # self.log_exception(e)
         finally:
             if res == 1 and tiaojian:
                 return 1

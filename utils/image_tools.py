@@ -119,10 +119,13 @@ def download_image(image_url, output_dir):
         else:
             return {'code': -3, "image_path": image_path}
     elif image_get_type == 'gif':
-        new_image_path = '{}.png'.format(image_id)
-        ImageSequence.Iterator(Image.open(image_path))[0].save(new_image_path)
-        shutil.rmtree(image_path)
-        return {'code': 1, "image_path": new_image_path}
+        try:
+            new_image_path = os.path.join(output_dir, '{}.png'.format(image_id))
+            ImageSequence.Iterator(Image.open(image_path))[0].save(new_image_path)
+            shutil.rmtree(image_path)
+            return {'code': 1, "image_path": new_image_path}
+        except:
+            return {'code': -4, "image_path": image_path}
     elif image_get_type is None:
         if image_type.lower() == '.heic':
             tmp_dir = os.path.join(output_dir, image_id)
