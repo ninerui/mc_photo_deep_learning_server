@@ -135,13 +135,13 @@ def parser_image(image_path, output_dir, image_get_type=None):
 
 
 PARSER_IMAGE_CODE = {
-    -3: "图片验证失败",
-    -1: "图片下载失败",
-    -2: "heic转换出错",
-    -4: "webp转换失败",
-    -5: "gif提取失败",
-    -6: "未知的图片类型",
-    -7: "解析处理函数出错"
+    -3: "image valid fail",
+    -1: "image download fail",
+    -2: "heic convert fail",
+    -4: "webp convert fail",
+    -5: "gif get image fail",
+    -6: "unknown image type",
+    -7: "function error"
 }
 
 
