@@ -207,7 +207,7 @@ def get_redis_next_data(rds_name):
         params = json.loads(params_data)
         logging.info("剩余数据: {}, data: {}".format(redis_connect.llen(conf.redis_image_making_list_name), params))
         image_url = params.get("image_url")
-        res_data = image_tools.download_image(image_url, conf.tmp_image_dir)
+        res_data = image_tools.download_and_parser_image(image_url, conf.tmp_image_dir)
         download_code = res_data.get('code')
         image_path = res_data.get('image_path')
         if download_code == -1:  # 下载失败, 打回列表
@@ -220,19 +220,22 @@ def get_redis_next_data(rds_name):
             params['reg_count'] = reg_count + 1
             time.sleep(2)
             redis_connect.rpush(conf.redis_image_making_list_name, json.dumps(params))
-        elif download_code == 1:  # 未知错误
+        elif download_code == 1:  # 下载以及解析成功
             params['image_path'] = image_path
             return params
         else:  # 图片处理失败
-            img_type = res_data.get('img_type')
             oss_key = "error_image/{}".format(os.path.basename(image_path))
             redis_connect.lpush(
                 conf.redis_image_making_error_name,
-                json.dumps(
-                    {'error_code': download_code, "img_type": img_type, "error_data": params, "oss_key": oss_key}))
+                json.dumps({
+                    'error_code': download_code,
+                    "img_type": res_data.get('img_type'),
+                    "error_data": params,
+                    "oss_key": oss_key,
+                    "error_info": res_data.get('info'),
+                }))
             oss_connect.put_object_from_file(oss_key, image_path)
             util.removefile(image_path)
-
             data_json = {
                 'mediaId': params.get('media_id'),
                 'fileId': params.get('file_id'),

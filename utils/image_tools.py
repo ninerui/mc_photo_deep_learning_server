@@ -1,21 +1,25 @@
 import os
+import glob
 import imghdr
-import shutil
 import subprocess
 
 import cv2
-# import pyheif
 import numpy as np
 from PIL import Image, ImageSequence
 from skimage import transform as trans
 from urllib.request import urlretrieve
 
-from utils import util
+
+def files(curr_dir='.', ext='*.exe'):
+    """当前目录下的文件"""
+    for i in glob.glob(os.path.join(curr_dir, ext)):
+        yield i
 
 
-def do_flip(data):
-    for idx in range(data.shape[0]):
-        data[idx, :, :] = np.fliplr(data[idx, :, :])
+def remove_files(rootdir, ext):
+    """删除rootdir目录下的符合的文件"""
+    for i in files(rootdir, ext):
+        os.remove(i)
 
 
 def preprocess(img, image_size, bbox=None, landmark=None, **kwargs):
@@ -62,16 +66,7 @@ def preprocess(img, image_size, bbox=None, landmark=None, **kwargs):
 
 
 def heic2jpg(src_file, result_file):
-    # # 脚本命令行转
-    # params = ['convert', src_file, result_file]
     subprocess.check_call(['heif-convert', src_file, result_file])
-
-    # python读取后转
-    # heif_file = pyheif.read_heif(src_file)
-    # pi = Image.frombytes(mode=heif_file.mode, size=heif_file.size, data=heif_file.data)
-    # pi.save(result_file, format='jpeg')
-    # img = np.fromstring(heif_file.data, dtype=np.uint8).reshape((heif_file.size[1], heif_file.size[0], 3))
-    # cv2.imwrite(result_file, cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
 
 
 def IsValidImage(file):
@@ -81,66 +76,143 @@ def IsValidImage(file):
     except OSError:
         valid = False
     return valid
-    # bValid = True
-    # if isinstance(file, (str, os.PathLike)):
-    #     fileObj = open(file, 'rb')
-    # else:
-    #     fileObj = file
-    # buf = fileObj.read()
-    # if buf[6:10] in (b'JFIF', b'Exif'):  # jpg图片
-    #     if not buf.rstrip(b'\0\r\n').endswith(b'\xff\xd9'):
-    #         bValid = False
-    # else:
-    #     try:
-    #         Image.open(fileObj).verify()
-    #     except:
-    #         bValid = False
-    # return bValid
 
 
-def download_image(image_url, output_dir):
+def parser_image(image_path, output_dir, image_get_type=None):
+    if image_get_type is None:
+        image_get_type = imghdr.what(image_path)
+    image_id, image_type = os.path.splitext(os.path.basename(image_path))
+    if image_get_type in ['jpeg', 'png', 'bmp']:
+        is_valid_image = IsValidImage(image_path)
+        if is_valid_image:
+            res_code = 1
+        else:
+            res_code = -3
+    elif image_get_type == 'gif':
+        try:
+            new_image_path = os.path.join(output_dir, '{}.png'.format(image_id))
+            ImageSequence.Iterator(Image.open(image_path))[0].save(new_image_path)
+            res_code = 1
+            os.remove(image_path)
+            image_path = new_image_path
+        except:
+            res_code = -5
+    elif image_get_type == 'webp':
+        new_img_path = os.path.join(output_dir, "{}.jpg".format(image_id))
+        subprocess.run(['dwebp', image_path, '-o', new_img_path])
+        if os.path.isfile(new_img_path):
+            res_code = 1
+            os.remove(image_path)
+            image_path = new_img_path
+        else:
+            res_code = -4
+    else:
+        if image_type.lower() == '.heic':
+            new_img_path = os.path.join(output_dir, "{}.jpg".format(image_id))
+            subprocess.run(['heif-convert', image_path, new_img_path])
+            if os.path.isfile(new_img_path):  # heic only one image
+                res_code = 1
+                os.remove(image_path)
+                image_path = new_img_path
+            elif os.path.isfile(os.path.join(output_dir, "{}-1.jpg".format(image_id))):  # heic have many image
+                res_code = 1
+                os.remove(image_path)
+                os.rename(os.path.join(output_dir, "{}-1.jpg".format(image_id)), new_img_path)
+                image_path = new_img_path
+                remove_files(output_dir, '{}-*.jpg'.format(image_id))  # remove multi image
+            else:
+                res_code = -2
+        elif image_type.lower() in ['.jpeg', '.png', '.bmp', '.jpg']:
+            res_code = 1
+        else:
+            res_code = -6
+    return res_code, image_path
+
+
+PARSER_IMAGE_CODE = {
+    -3: "图片验证失败",
+    -1: "图片下载失败",
+    -2: "heic转换出错",
+    -4: "webp转换失败",
+    -5: "gif提取失败",
+    -6: "未知的图片类型",
+    -7: "解析处理函数出错"
+}
+
+
+def download_and_parser_image(image_url, output_dir):
     image_name = os.path.basename(image_url)
     image_path = os.path.join(output_dir, image_name)
     try:
         urlretrieve(image_url, image_path)
     except:
-        return {'code': -1}
+        return {'code': -1, "info": PARSER_IMAGE_CODE.get(-1, None)}
+    res_code = 0
     image_get_type = imghdr.what(image_path)
-    image_id, image_type = os.path.splitext(image_name)
-    if image_get_type == 'webp':
-        new_img_path = os.path.join(output_dir, "{}.jpg".format(image_id))
-        subprocess.run(['dwebp', image_path, '-o', new_img_path])
-        if os.path.isfile(new_img_path):
-            util.removefile(image_path)
-            return {'code': 1, "image_path": new_img_path}
-    elif image_get_type in ['jpeg', 'png', 'bmp']:
-        if IsValidImage(image_path):
-            return {'code': 1, "image_path": image_path}
-        else:
-            return {'code': -3, "image_path": image_path}
-    elif image_get_type == 'gif':
-        try:
-            new_image_path = os.path.join(output_dir, '{}.png'.format(image_id))
-            ImageSequence.Iterator(Image.open(image_path))[0].save(new_image_path)
-            shutil.rmtree(image_path)
-            return {'code': 1, "image_path": new_image_path}
-        except:
-            return {'code': -4, "image_path": image_path}
-    elif image_get_type is None:
-        if image_type.lower() == '.heic':
-            tmp_dir = os.path.join(output_dir, image_id)
-            util.makedirs(tmp_dir)
-            new_img_path = os.path.join(tmp_dir, "{}.jpg".format(image_id))
-            subprocess.run(['heif-convert', image_path, new_img_path])
-            if os.path.isfile(new_img_path):
-                shutil.move(new_img_path, image_path)
-                # util.removefile(image_path)
-            elif os.path.isfile(os.path.join(tmp_dir, "{}-1.jpg".format(image_id))):
-                shutil.move(os.path.join(tmp_dir, "{}-1.jpg".format(image_id)), image_path)
-                # shutil.rmtree(os.path.join(output_dir, image_id))
-                # return {'code': 1, "image_path": os.path.join(output_dir, image_id, "{}-1.jpg".format(image_id))}
-            shutil.rmtree(tmp_dir)
-            return {'code': 1, "image_path": image_path}
-        elif image_type.lower() in ['.jpeg', '.png', '.bmp', '.jpg']:
-            return {'code': 1, "image_path": image_path}
-    return {'code': -2, "image_path": image_path, "img_type": image_get_type}
+    try:
+        res_code, image_path = parser_image(image_path, output_dir, image_get_type)
+    except:
+        res_code = -7
+    finally:
+        return {
+            'code': res_code,
+            "image_path": image_path,
+            "img_type": image_get_type,
+            "info": PARSER_IMAGE_CODE.get(res_code, None)
+        }
+
+    # image_get_type = imghdr.what(image_path)
+    # image_id, image_type = os.path.splitext(image_name)
+    # if image_get_type == 'webp':
+    #     new_img_path = os.path.join(output_dir, "{}.jpg".format(image_id))
+    #     subprocess.run(['dwebp', image_path, '-o', new_img_path])
+    #     if os.path.isfile(new_img_path):
+    #         util.removefile(image_path)
+    #         return {'code': 1, "image_path": new_img_path}
+    # elif image_get_type in ['jpeg', 'png', 'bmp']:
+    #     if IsValidImage(image_path):
+    #         return {'code': 1, "image_path": image_path}
+    #     else:
+    #         return {'code': -3, "image_path": image_path}
+    # elif image_get_type == 'gif':
+    #     try:
+    #         new_image_path = os.path.join(output_dir, '{}.png'.format(image_id))
+    #         ImageSequence.Iterator(Image.open(image_path))[0].save(new_image_path)
+    #         shutil.rmtree(image_path)
+    #         return {'code': 1, "image_path": new_image_path}
+    #     except:
+    #         return {'code': -4, "image_path": image_path}
+    # elif image_get_type is None:
+    #     if image_type.lower() == '.heic':
+    #         new_img_path = os.path.join(output_dir, "{}.jpg".format(image_id))
+    #         subprocess.run(['heif-convert', image_path, new_img_path])
+    #         if os.path.isfile(new_img_path):  # heic only one image
+    #             res_code = 1
+    #             os.remove(image_path)
+    #             image_path = new_img_path
+    #         elif os.path.isfile(os.path.join(output_dir, "{}-1.jpg".format(image_id))):  # heic have many image
+    #             res_code = 1
+    #             os.remove(image_path)
+    #             os.rename(os.path.join(output_dir, "{}-1.jpg".format(image_id)), new_img_path)
+    #             image_path = new_img_path
+    #             remove_files(output_dir, '{}-*.jpg'.format(image_id))
+    #         else:
+    #             res_code = -1
+    #         #
+    #         #
+    #         # tmp_dir = os.path.join(output_dir, image_id)
+    #         # util.makedirs(tmp_dir)
+    #         # new_img_path = os.path.join(tmp_dir, "{}.jpg".format(image_id))
+    #         # subprocess.run(['heif-convert', image_path, new_img_path])
+    #         # if os.path.isfile(new_img_path):
+    #         #     shutil.move(new_img_path, image_path)
+    #         # elif os.path.isfile(os.path.join(tmp_dir, "{}-1.jpg".format(image_id))):
+    #         #     shutil.move(os.path.join(tmp_dir, "{}-1.jpg".format(image_id)), image_path)
+    #         # shutil.rmtree(tmp_dir)
+    #         # shutil.rmtree(image_path)
+    #         # return {'code': 1, "image_path": image_path}
+    #     elif image_type.lower() in ['.jpeg', '.png', '.bmp', '.jpg']:
+    #         res_code = 1
+    #
+    #         # return {'code': 1, "image_path": image_path}
+    # return {'code': -2, "image_path": image_path, "img_type": image_get_type}
