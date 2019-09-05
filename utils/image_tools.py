@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -15,13 +16,13 @@ from urllib.request import urlretrieve
 
 
 def files(curr_dir='.', ext='*.exe'):
-    """µ±Ç°Ä¿Â¼ÏÂµÄÎÄ¼ş"""
+    """å½“å‰ç›®å½•ä¸‹çš„æ–‡ä»¶"""
     for i in glob.glob(os.path.join(curr_dir, ext)):
         yield i
 
 
 def remove_files(rootdir, ext):
-    """É¾³ırootdirÄ¿Â¼ÏÂµÄ·ûºÏµÄÎÄ¼ş"""
+    """åˆ é™¤rootdirç›®å½•ä¸‹çš„ç¬¦åˆçš„æ–‡ä»¶"""
     for i in files(rootdir, ext):
         os.remove(i)
 
@@ -134,13 +135,13 @@ def parser_image(image_path, output_dir, image_get_type=None):
 
 
 PARSER_IMAGE_CODE = {
-    -3: "Í¼Æ¬ÑéÖ¤Ê§°Ü",
-    -1: "Í¼Æ¬ÏÂÔØÊ§°Ü",
-    -2: "heic×ª»»³ö´í",
-    -4: "webp×ª»»Ê§°Ü",
-    -5: "gifÌáÈ¡Ê§°Ü",
-    -6: "Î´ÖªµÄÍ¼Æ¬ÀàĞÍ",
-    -7: "½âÎö´¦Àíº¯Êı³ö´í"
+    -3: "å›¾ç‰‡éªŒè¯å¤±è´¥",
+    -1: "å›¾ç‰‡ä¸‹è½½å¤±è´¥",
+    -2: "heicè½¬æ¢å‡ºé”™",
+    -4: "webpè½¬æ¢å¤±è´¥",
+    -5: "gifæå–å¤±è´¥",
+    -6: "æœªçŸ¥çš„å›¾ç‰‡ç±»å‹",
+    -7: "è§£æå¤„ç†å‡½æ•°å‡ºé”™"
 }
 
 
