@@ -88,11 +88,20 @@ def parser_image(image_path, output_dir, image_get_type=None):
         image_get_type = imghdr.what(image_path)
     image_id, image_type = os.path.splitext(os.path.basename(image_path))
     if image_get_type in ['jpeg', 'png', 'bmp']:
-        is_valid_image = IsValidImage(image_path)
-        if is_valid_image:
+        try:
+            Image.open(image_path).load()
             res_code = 1
-        else:
-            res_code = -3
+        except OSError:
+            try:
+                cv2.imwrite(image_path, cv2.imread(image_path))
+                res_code = 1
+            except cv2.error:
+                res_code = -3
+        # is_valid_image = IsValidImage(image_path)
+        # if is_valid_image:
+        #     res_code = 1
+        # else:
+        #     res_code = -3
     elif image_get_type == 'gif':
         try:
             new_image_path = os.path.join(output_dir, '{}.png'.format(image_id))
