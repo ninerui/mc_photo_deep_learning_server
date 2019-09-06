@@ -27,7 +27,7 @@ wonderful_gen_thread_num_dict = {  # 精彩生成线程数
     '172.16.178.210': 1,
 }
 log_dir = './log'
-tmp_image_dir = '../tmp_image_dir'
+tmp_image_dir = '/data/tmp_image_dir'
 
 # redis_image_queue_name = "mc_image_queue_list"
 redis_face_info_name = "mc_face_info_list-{}"

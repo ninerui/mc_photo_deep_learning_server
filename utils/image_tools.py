@@ -83,9 +83,8 @@ def IsValidImage(file):
     return valid
 
 
-def parser_image(image_path, output_dir, image_get_type=None):
-    if image_get_type is None:
-        image_get_type = imghdr.what(image_path)
+def parser_image(image_path, output_dir):
+    image_get_type = imghdr.what(image_path)
     image_id, image_type = os.path.splitext(os.path.basename(image_path))
     if image_get_type in ['jpeg', 'png', 'bmp']:
         try:
@@ -140,7 +139,7 @@ def parser_image(image_path, output_dir, image_get_type=None):
             res_code = 1
         else:
             res_code = -6
-    return res_code, image_path
+    return res_code, image_path, image_get_type
 
 
 PARSER_IMAGE_CODE = {
@@ -162,9 +161,9 @@ def download_and_parser_image(image_url, output_dir):
     except:
         return {'code': -1, "info": PARSER_IMAGE_CODE.get(-1, None)}
     res_code = 0
-    image_get_type = imghdr.what(image_path)
+    image_get_type = None
     try:
-        res_code, image_path = parser_image(image_path, output_dir, image_get_type)
+        res_code, image_path, image_get_type = parser_image(image_path, output_dir)
     except:
         res_code = -7
     finally:
