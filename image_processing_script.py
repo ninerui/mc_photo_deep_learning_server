@@ -10,7 +10,6 @@ import pickle
 import logging
 import threading
 from random import choice
-from urllib.request import urlretrieve
 
 import cv2
 import requests
@@ -450,31 +449,13 @@ class GenerationWonderfulImageThread(threading.Thread):
         time.sleep(9 / max(1, params_count))
 
     def download_image(self, image_url):
-        image_name = os.path.basename(image_url)
-        image_path = os.path.join(conf.tmp_image_dir, image_name)
-        try:
-            urlretrieve(image_url, image_path)
-        except Exception as e:
-            logging.info("{}下载失败\n{}".format(image_url, e))
-            return None
-        image_id, image_type = os.path.splitext(image_name)
-        if image_type.lower() == '.heic':
-            try:
-                new_img_path = os.path.join(conf.tmp_image_dir, "{}.jpg".format(image_id))
-                tmp_time = time.time()
-                image_tools.heic2jpg(image_path, new_img_path)
-                logging.info("{}转jpg耗时: {}".format(image_name, time.time() - tmp_time))
-                if os.path.isfile(new_img_path):
-                    util.removefile(image_path)
-                    return new_img_path
-                else:
-                    logging.error("{}转换失败".format(image_url))
-                    return None
-            except Exception as e:
-                logging.error("{}转换失败\n{}".format(image_url, e))
-                return None
-        else:
+        res_data = image_tools.download_and_parser_image(image_url, conf.tmp_image_dir)
+        download_code = res_data.get('code')
+        image_path = res_data.get('image_path')
+        if download_code == 1:
             return image_path
+        else:
+            return None
 
     def run(self):
         logging.info("精彩生成线程已启动...")
