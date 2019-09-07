@@ -70,19 +70,6 @@ def preprocess(img, image_size, bbox=None, landmark=None, **kwargs):
         return warped
 
 
-def heic2jpg(src_file, result_file):
-    subprocess.check_call(['heif-convert', src_file, result_file])
-
-
-def IsValidImage(file):
-    valid = True
-    try:
-        Image.open(file).load()
-    except OSError:
-        valid = False
-    return valid
-
-
 def parser_image(image_path, output_dir):
     image_get_type = imghdr.what(image_path)
     image_id, image_type = os.path.splitext(os.path.basename(image_path))
@@ -96,11 +83,6 @@ def parser_image(image_path, output_dir):
                 res_code = 1
             except cv2.error:
                 res_code = -3
-        # is_valid_image = IsValidImage(image_path)
-        # if is_valid_image:
-        #     res_code = 1
-        # else:
-        #     res_code = -3
     elif image_get_type == 'gif':
         try:
             new_image_path = os.path.join(output_dir, '{}.png'.format(image_id))
@@ -173,59 +155,3 @@ def download_and_parser_image(image_url, output_dir):
             "img_type": image_get_type,
             "info": PARSER_IMAGE_CODE.get(res_code, None)
         }
-
-    # image_get_type = imghdr.what(image_path)
-    # image_id, image_type = os.path.splitext(image_name)
-    # if image_get_type == 'webp':
-    #     new_img_path = os.path.join(output_dir, "{}.jpg".format(image_id))
-    #     subprocess.run(['dwebp', image_path, '-o', new_img_path])
-    #     if os.path.isfile(new_img_path):
-    #         util.removefile(image_path)
-    #         return {'code': 1, "image_path": new_img_path}
-    # elif image_get_type in ['jpeg', 'png', 'bmp']:
-    #     if IsValidImage(image_path):
-    #         return {'code': 1, "image_path": image_path}
-    #     else:
-    #         return {'code': -3, "image_path": image_path}
-    # elif image_get_type == 'gif':
-    #     try:
-    #         new_image_path = os.path.join(output_dir, '{}.png'.format(image_id))
-    #         ImageSequence.Iterator(Image.open(image_path))[0].save(new_image_path)
-    #         shutil.rmtree(image_path)
-    #         return {'code': 1, "image_path": new_image_path}
-    #     except:
-    #         return {'code': -4, "image_path": image_path}
-    # elif image_get_type is None:
-    #     if image_type.lower() == '.heic':
-    #         new_img_path = os.path.join(output_dir, "{}.jpg".format(image_id))
-    #         subprocess.run(['heif-convert', image_path, new_img_path])
-    #         if os.path.isfile(new_img_path):  # heic only one image
-    #             res_code = 1
-    #             os.remove(image_path)
-    #             image_path = new_img_path
-    #         elif os.path.isfile(os.path.join(output_dir, "{}-1.jpg".format(image_id))):  # heic have many image
-    #             res_code = 1
-    #             os.remove(image_path)
-    #             os.rename(os.path.join(output_dir, "{}-1.jpg".format(image_id)), new_img_path)
-    #             image_path = new_img_path
-    #             remove_files(output_dir, '{}-*.jpg'.format(image_id))
-    #         else:
-    #             res_code = -1
-    #         #
-    #         #
-    #         # tmp_dir = os.path.join(output_dir, image_id)
-    #         # util.makedirs(tmp_dir)
-    #         # new_img_path = os.path.join(tmp_dir, "{}.jpg".format(image_id))
-    #         # subprocess.run(['heif-convert', image_path, new_img_path])
-    #         # if os.path.isfile(new_img_path):
-    #         #     shutil.move(new_img_path, image_path)
-    #         # elif os.path.isfile(os.path.join(tmp_dir, "{}-1.jpg".format(image_id))):
-    #         #     shutil.move(os.path.join(tmp_dir, "{}-1.jpg".format(image_id)), image_path)
-    #         # shutil.rmtree(tmp_dir)
-    #         # shutil.rmtree(image_path)
-    #         # return {'code': 1, "image_path": image_path}
-    #     elif image_type.lower() in ['.jpeg', '.png', '.bmp', '.jpg']:
-    #         res_code = 1
-    #
-    #         # return {'code': 1, "image_path": image_path}
-    # return {'code': -2, "image_path": image_path, "img_type": image_get_type}
