@@ -1,7 +1,10 @@
+import os
+
 import cv2
 import numpy as np
 import skimage
 import skimage.io
+from PIL import Image
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 from tensorflow.python.ops import nn
@@ -109,3 +112,133 @@ def get_enjancement_img(input_img, output_img):
         }
         out_ = sess.run(output, feed_dict=feed_dict)
         skimage.io.imsave(output_img, out_)
+
+
+def get_normalize_size_shape_method(img, max_length):
+    [height, width, channels] = img.shape
+    if height >= width:
+        longerSize = height
+        shorterSize = width
+    else:
+        longerSize = width
+        shorterSize = height
+
+    scale = float(max_length) / float(longerSize)
+
+    outputHeight = int(round(height * scale))
+    outputWidth = int(round(width * scale))
+    return outputHeight, outputWidth
+
+
+def cpu_normalize_image(img, max_length):
+    outputHeight, outputWidth = get_normalize_size_shape_method(img, max_length)
+    outputImg = Image.fromarray(img)
+    outputImg = outputImg.resize((outputWidth, outputHeight), Image.ANTIALIAS)
+    outputImg = np.array(outputImg)
+    return outputImg
+
+
+def normalizeImage(img, max_length):
+    [height, width, channels] = img.shape
+    max_l = max(height, width)
+
+    is_need_resize = max_l != 512
+    if is_need_resize:
+        img = cpu_normalize_image(img, max_length)
+    return img
+
+
+def random_pad_to_size(img, size, mask, pad_symmetric, use_random):
+    if mask is None:
+        mask = np.ones(shape=img.shape)
+    s0 = size - img.shape[0]
+    s1 = size - img.shape[1]
+
+    if use_random:
+        b0 = np.random.randint(0, s0 + 1)
+        b1 = np.random.randint(0, s1 + 1)
+    else:
+        b0 = 0
+        b1 = 0
+    a0 = s0 - b0
+    a1 = s1 - b1
+    if pad_symmetric:
+        img = np.pad(img, ((b0, a0), (b1, a1), (0, 0)), 'symmetric')
+    else:
+        img = np.pad(img, ((b0, a0), (b1, a1), (0, 0)), 'constant')
+    mask = np.pad(mask, ((b0, a0), (b1, a1), (0, 0)), 'constant')
+    return img, mask, [b0, img.shape[0] - a0, b1, img.shape[1] - a1]
+
+
+def safe_casting(data, dtype):
+    output = np.clip(data + 0.5, np.iinfo(dtype).min, np.iinfo(dtype).max)
+    output = output.astype(dtype)
+    return output
+
+
+class ImageHDRs:
+    def __init__(self, model_path='./models/image_enhancement_models/model_999_new.pb'):
+        graph_def = tf_tools.load_pb_model(model_path)
+        self.sess = tf.Session(graph=graph_def)
+        self.netG_test_output1 = graph_def.get_tensor_by_name(
+            'netG-999/netG-999_var_scope/netG-999_var_scopeA/netG-999_3/Add_48:0')
+        self.netG_test_gfeature1 = graph_def.get_tensor_by_name(
+            'netG-999/netG-999_var_scope/netG-999_var_scopeA/netG-999_2/BiasAdd_3:0')
+        self.input1 = graph_def.get_tensor_by_name('Placeholder:0')
+        self.rate1 = graph_def.get_tensor_by_name('Placeholder_2:0')
+        self.input2 = graph_def.get_tensor_by_name('Placeholder_1:0')
+
+    def get_hdr_image(self, input_img, output_img):
+        input_img = cv2.imread(input_img, 1)
+        h, w, _ = input_img.shape
+        os.remove(input_img)
+        if max(h, w) > 2048:
+            if h >= w:
+                longerSize = h
+            else:
+                longerSize = w
+            scale = float(2048) / float(longerSize)
+            outputHeight = int(round(h * scale))
+            outputWidth = int(round(w * scale))
+            outputImg = Image.fromarray(input_img)
+            outputImg = outputImg.resize((outputWidth, outputHeight), Image.ANTIALIAS)
+            outputImg = np.array(outputImg)
+            cv2.imwrite(input_img, outputImg)
+        else:
+            cv2.imwrite(input_img, input_img)
+        input_img = cv2.imread(input_img, -1)
+        resize_input_img = normalizeImage(input_img, 512)
+        resize_input_img, _, _ = random_pad_to_size(resize_input_img, 512, None, True, False)
+        resize_input_img = resize_input_img[None, :, :, :]
+
+        gfeature = self.sess.run(
+            self.netG_test_gfeature1,
+            feed_dict={self.input1: resize_input_img, self.rate1: 1})
+
+        h, w, c = input_img.shape
+        rate = int(round(max(h, w) / 512))
+        if rate == 0:
+            rate = 1
+        padrf = rate * 64
+        patch = 16 * 64
+        pad_h = 0 if h % patch == 0 else patch - (h % patch)
+        pad_w = 0 if w % patch == 0 else patch - (w % patch)
+        pad_h = pad_h + padrf if pad_h < padrf else pad_h
+        pad_w = pad_w + padrf if pad_w < padrf else pad_w
+
+        input_img = np.pad(input_img, [(padrf, pad_h), (padrf, pad_w), (0, 0)], 'reflect')
+        y_list = []
+        for y in range(padrf, h + padrf, patch):
+            x_list = []
+            for x in range(padrf, w + padrf, patch):
+                crop_img = input_img[None, y - padrf:y + padrf + patch, x - padrf:x + padrf + patch, :]
+                enhance_test_img = self.sess.run(
+                    self.netG_test_output1,
+                    feed_dict={self.input1: crop_img, self.input2: gfeature, self.rate1: rate})
+                enhance_test_img = enhance_test_img[0, padrf:-padrf, padrf:-padrf, :]
+                x_list.append(enhance_test_img)
+            y_list.append(np.concatenate(x_list, axis=1))
+        enhance_test_img = np.concatenate(y_list, axis=0)
+        enhance_test_img = enhance_test_img[:h, :w, :]
+        enhance_test_img = safe_casting(enhance_test_img * tf.as_dtype(np.uint8).max, np.uint8)
+        cv2.imwrite(output_img, enhance_test_img)

@@ -490,7 +490,8 @@ class GenerationWonderfulImageThread(threading.Thread):
 
                 tmp_time = time.time()
                 if int(wonderful_type) == 11:  # 风格化照片
-                    image_enhancement_interface.get_enjancement_img(image_path, output_path)
+                    # image_enhancement_interface.get_enjancement_img(image_path, output_path)
+                    image_enhancement_model.get_hdr_image(image_path, output_path)
                 elif int(wonderful_type) == 12:  # 自动上色
                     autocolor_model.get_result_image(image_path, output_path)
                 elif int(wonderful_type) == 9:  # 局部彩色
@@ -537,7 +538,6 @@ if __name__ == '__main__':
     ).r_object
     # 设置脚本重启代码
     redis_connect.set(local_ip, "0")
-    # r_object.set_content()
 
     logging.info("加载全局模型...")
     image_process_thread_num = conf.image_process_thread_num_dict.get(local_ip, 0)
@@ -556,6 +556,7 @@ if __name__ == '__main__':
 
     if wonderful_gen_thread_num > 0:
         autocolor_model = ImageAutoColor()
+        image_enhancement_model = image_enhancement_interface.ImageHDRs()
         # image_enhancement_model = image_enhancement_interface.AIChallengeWithDPEDSRCNN()
         # pose_estimator_model = TfPoseEstimator('./models/pose_estimator_models.pb', target_size=(432, 368))
         create_local_color = ImageLocalColor()
