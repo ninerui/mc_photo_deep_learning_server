@@ -24,7 +24,7 @@ face_cluster_thread_num_dict = {  # 人脸聚类线程数
 wonderful_gen_thread_num_dict = {  # 精彩生成线程数
     '172.16.172.130': 1,
 
-    '172.16.178.210': 1,
+    '172.16.178.210': 2,
 }
 log_dir = './log'
 tmp_image_dir = '/data/tmp_image_dir'

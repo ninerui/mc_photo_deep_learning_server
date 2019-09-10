@@ -188,10 +188,10 @@ class ImageHDRs:
         self.rate1 = graph_def.get_tensor_by_name('Placeholder_2:0')
         self.input2 = graph_def.get_tensor_by_name('Placeholder_1:0')
 
-    def get_hdr_image(self, input_img, output_img):
-        input_img = cv2.imread(input_img, 1)
+    def get_hdr_image(self, input_file, output_file):
+        input_img = cv2.imread(input_file, 1)
         h, w, _ = input_img.shape
-        os.remove(input_img)
+        os.remove(input_file)
         if max(h, w) > 2048:
             if h >= w:
                 longerSize = h
@@ -203,18 +203,16 @@ class ImageHDRs:
             outputImg = Image.fromarray(input_img)
             outputImg = outputImg.resize((outputWidth, outputHeight), Image.ANTIALIAS)
             outputImg = np.array(outputImg)
-            cv2.imwrite(input_img, outputImg)
+            cv2.imwrite(input_file, outputImg)
         else:
-            cv2.imwrite(input_img, input_img)
-        input_img = cv2.imread(input_img, -1)
+            cv2.imwrite(input_file, input_img)
+        input_img = cv2.imread(input_file, -1)
         resize_input_img = normalizeImage(input_img, 512)
         resize_input_img, _, _ = random_pad_to_size(resize_input_img, 512, None, True, False)
         resize_input_img = resize_input_img[None, :, :, :]
-
         gfeature = self.sess.run(
             self.netG_test_gfeature1,
             feed_dict={self.input1: resize_input_img, self.rate1: 1})
-
         h, w, c = input_img.shape
         rate = int(round(max(h, w) / 512))
         if rate == 0:
@@ -225,7 +223,6 @@ class ImageHDRs:
         pad_w = 0 if w % patch == 0 else patch - (w % patch)
         pad_h = pad_h + padrf if pad_h < padrf else pad_h
         pad_w = pad_w + padrf if pad_w < padrf else pad_w
-
         input_img = np.pad(input_img, [(padrf, pad_h), (padrf, pad_w), (0, 0)], 'reflect')
         y_list = []
         for y in range(padrf, h + padrf, patch):
@@ -241,4 +238,4 @@ class ImageHDRs:
         enhance_test_img = np.concatenate(y_list, axis=0)
         enhance_test_img = enhance_test_img[:h, :w, :]
         enhance_test_img = safe_casting(enhance_test_img * tf.as_dtype(np.uint8).max, np.uint8)
-        cv2.imwrite(output_img, enhance_test_img)
+        cv2.imwrite(output_file, enhance_test_img)
