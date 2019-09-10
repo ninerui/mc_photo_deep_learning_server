@@ -6,6 +6,7 @@ from __future__ import print_function
 import os
 import glob
 import imghdr
+import logging
 import subprocess
 
 import cv2
@@ -90,7 +91,8 @@ def parser_image(image_path, output_dir):
             res_code = 1
             os.remove(image_path)
             image_path = new_image_path
-        except:
+        except Exception as e:
+            logging.exception(e)
             res_code = -5
     elif image_get_type == 'webp':
         new_img_path = os.path.join(output_dir, "{}.jpg".format(image_id))
@@ -140,13 +142,15 @@ def download_and_parser_image(image_url, output_dir):
     image_path = os.path.join(output_dir, image_name)
     try:
         urlretrieve(image_url, image_path)
-    except:
+    except Exception as e:
+        logging.exception(e)
         return {'code': -1, "info": PARSER_IMAGE_CODE.get(-1, None)}
     res_code = 0
     image_get_type = None
     try:
         res_code, image_path, image_get_type = parser_image(image_path, output_dir)
-    except:
+    except Exception as e:
+        logging.exception(e)
         res_code = -7
     finally:
         return {
