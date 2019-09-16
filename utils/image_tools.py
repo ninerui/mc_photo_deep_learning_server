@@ -10,6 +10,7 @@ import logging
 import subprocess
 
 import cv2
+import pyheif
 import numpy as np
 from PIL import Image, ImageSequence
 from skimage import transform as trans
@@ -71,6 +72,12 @@ def preprocess(img, image_size, bbox=None, landmark=None, **kwargs):
         return warped
 
 
+def heic2jpg(src_file, result_file):
+    heif_file = pyheif.read_heif(src_file)
+    pi = Image.frombytes(mode=heif_file.mode, size=heif_file.size, data=heif_file.data)
+    pi.save(result_file, format='jpeg')
+
+
 def parser_image(image_path, output_dir):
     image_get_type = imghdr.what(image_path)
     image_id, image_type = os.path.splitext(os.path.basename(image_path))
@@ -106,19 +113,30 @@ def parser_image(image_path, output_dir):
     else:
         if image_type.lower() == '.heic':
             new_img_path = os.path.join(output_dir, "{}.jpg".format(image_id))
-            subprocess.run(['heif-convert', image_path, new_img_path])
-            if os.path.isfile(new_img_path):  # heic only one image
-                res_code = 1
-                os.remove(image_path)
-                image_path = new_img_path
-            elif os.path.isfile(os.path.join(output_dir, "{}-1.jpg".format(image_id))):  # heic have many image
-                res_code = 1
-                os.remove(image_path)
-                os.rename(os.path.join(output_dir, "{}-1.jpg".format(image_id)), new_img_path)
-                image_path = new_img_path
-                remove_files(output_dir, '{}-*.jpg'.format(image_id))  # remove multi image
-            else:
-                res_code = -2
+            try:
+                heic2jpg(image_path, new_img_path)
+            except Exception as e:
+                logging.exception(e)
+            finally:
+                if os.path.isfile(new_img_path):
+                    res_code = 1
+                    os.remove(image_path)
+                    image_path = new_img_path
+                else:
+                    res_code = -2
+            # subprocess.run(['heif-convert', image_path, new_img_path])
+            # if os.path.isfile(new_img_path):  # heic only one image
+            #     res_code = 1
+            #     os.remove(image_path)
+            #     image_path = new_img_path
+            # elif os.path.isfile(os.path.join(output_dir, "{}-1.jpg".format(image_id))):  # heic have many image
+            #     res_code = 1
+            #     os.remove(image_path)
+            #     os.rename(os.path.join(output_dir, "{}-1.jpg".format(image_id)), new_img_path)
+            #     image_path = new_img_path
+            #     remove_files(output_dir, '{}-*.jpg'.format(image_id))  # remove multi image
+            # else:
+            #     res_code = -2
         elif image_type.lower() in ['.jpeg', '.png', '.bmp', '.jpg']:
             res_code = 1
         else:

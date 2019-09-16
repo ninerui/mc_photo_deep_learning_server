@@ -27,6 +27,7 @@ from dl_module import zhouwen_image_card_classify_interface
 from dl_module.image_local_color_interface import ImageLocalColor
 from dl_module.image_autocolor_interface import ImageAutoColor
 from dl_module import object_detection_interface
+from dl_module.id_card_detection_interface import IDCardDetection
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -376,7 +377,11 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         image = cv2.imread(image_path)
         # 图片证件识别
         tmp_time = time.time()
-        is_card = is_idcard_model.get_res_from_one(image)
+        have_id_card = have_idcard_model.detect_id_card(image)
+        if have_id_card:
+            is_card = is_idcard_model.get_res_from_one(image)
+        else:
+            is_card = []
         time_ic = time.time() - tmp_time
         tmp_time = time.time()
         face_count = self.parser_face(user_id, media_id, image)
@@ -553,6 +558,7 @@ if __name__ == '__main__':
         fd_mtcnn_detection = face_detection_interface.FaceDetectionWithMtcnnTF(steps_threshold=[0.6, 0.7, 0.8])
         is_idcard_model = zhouwen_image_card_classify_interface.IDCardClassify()
         object_detection_model = object_detection_interface.ObjectDetectionWithSSDMobilenetV2()
+        have_idcard_model = IDCardDetection()
 
     if wonderful_gen_thread_num > 0:
         autocolor_model = ImageAutoColor()
