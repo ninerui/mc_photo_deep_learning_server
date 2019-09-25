@@ -184,6 +184,47 @@ if __name__ == '__main__':
             res_img.paste(img_5, box=(0, 1028))
             res_img.paste(img_6, box=(0, 1542))
 
+        elif img_count == 9:
+            image_list = [Image.open(i) for i in img_path_list]
+
+            img_1 = image_list.pop(0)
+            img_1 = resize_image(img_1, size=(511, 511))
+
+            img_2 = image_list.pop(0)
+            img_2 = resize_image(img_2, size=(511, 511))
+
+            img_3 = image_list.pop(0)
+            img_3 = resize_image(img_3, size=(511, 511))
+
+            img_4 = image_list.pop(0)
+            img_4 = resize_image(img_4, size=(511, 511))
+
+            img_5 = image_list.pop(0)
+            img_5 = resize_image(img_5, size=(511, 511))
+
+            img_6 = image_list.pop(0)
+            img_6 = resize_image(img_6, size=(511, 511))
+
+            img_7 = image_list.pop(0)
+            img_7 = resize_image(img_7, size=(511, 511))
+
+            img_8 = image_list.pop(0)
+            img_8 = resize_image(img_8, size=(511, 511))
+
+            img_9 = image_list.pop(0)
+            img_9 = resize_image(img_9, size=(511, 511))
+
+            res_img = Image.new(mode='RGB', size=(1539, 1539), color='white')
+            res_img.paste(img_1, box=(0, 0))
+            res_img.paste(img_2, box=(0, 514))
+            res_img.paste(img_3, box=(0, 1028))
+            res_img.paste(img_4, box=(514, 0))
+            res_img.paste(img_5, box=(1028, 0))
+            res_img.paste(img_6, box=(514, 514))
+            res_img.paste(img_7, box=(514, 1028))
+            res_img.paste(img_8, box=(1028, 514))
+            res_img.paste(img_9, box=(1028, 1028))
+
         res_img.save(output_path)
         sys.stdout.write('111: {}'.format(output_path))
     except Exception as e:
