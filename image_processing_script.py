@@ -14,6 +14,7 @@ from random import choice
 import cv2
 import requests
 import numpy as np
+import tensorflow as tf
 from PIL import ImageFile
 
 import conf
@@ -28,6 +29,7 @@ from dl_module.image_local_color_interface import ImageLocalColor
 from dl_module.image_autocolor_interface import ImageAutoColor
 from dl_module import object_detection_interface
 from dl_module.id_card_detection_interface import IDCardDetection
+from dl_module.image_quality_assessment_interface import TechnicalQualityModelWithTF, AestheticQualityModelWithTF
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -249,6 +251,7 @@ def get_redis_next_data(rds_name):
                 'exponent': 0,
                 'mediaInfo': str(json.dumps({
                     "certificateInfo": [],
+                    "quality": [],
                 }, ensure_ascii=False)),
                 "isBlackAndWhite": 0,
                 "isLocalColor": 0,
@@ -392,6 +395,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
 
         b, g, r = cv2.split(image)
         is_black_and_white = 1 if ((b == g).all() and (b == r).all()) else 0
+        quality_image = np.asarray(tf.keras.preprocessing.image.load_img(image_path, target_size=(224, 224)))
         data_json = {
             'mediaId': media_id,
             'fileId': params_data.get('file_id'),
@@ -400,6 +404,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             'exponent': detection_blur(image),
             'mediaInfo': str(json.dumps({
                 "certificateInfo": is_card,
+                "quality": [aesthetic_model.get_res(quality_image), technical_model.get_res(quality_image)],
             }, ensure_ascii=False)),
             "isBlackAndWhite": is_black_and_white,
             "isLocalColor": is_local_color,
@@ -559,6 +564,8 @@ if __name__ == '__main__':
         is_idcard_model = zhouwen_image_card_classify_interface.IDCardClassify()
         object_detection_model = object_detection_interface.ObjectDetectionWithSSDMobilenetV2()
         have_idcard_model = IDCardDetection()
+        technical_model = TechnicalQualityModelWithTF()
+        aesthetic_model = AestheticQualityModelWithTF()
 
     if wonderful_gen_thread_num > 0:
         autocolor_model = ImageAutoColor()
