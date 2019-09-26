@@ -252,6 +252,7 @@ def get_redis_next_data(rds_name):
                 'mediaInfo': str(json.dumps({
                     "certificateInfo": [],
                     "quality": [],
+                    "human_coordinate": "",
                 }, ensure_ascii=False)),
                 "isBlackAndWhite": 0,
                 "isLocalColor": 0,
@@ -336,30 +337,37 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         finally:
             return 0
 
-    def get_is_local_color(self, image):
+    def get_is_local_color(self, image, face_count):
         res = 0
         tiaojian = False
+        location = ""
         try:
             f = min((4096. / max(image.shape[0], image.shape[1])), 1.0)
             image_r = cv2.resize(image, (int(image.shape[1] * f), int(image.shape[0] * f)))
             image_np_expanded = np.expand_dims(image_r, axis=0)
             od_boxes, od_scores, od_classes = object_detection_model.detect_object(image_np_expanded)
-            for idx in range(od_boxes[0].shape[0]):
-                if od_scores[0][idx] < 0.7:
-                    break
-                if int(od_classes[0][idx]) != 1:
-                    continue
-                res += 1
-                ymin, xmin, ymax, xmax = od_boxes[0][idx]
+            if face_count == 1:
+                ymin, xmin, ymax, xmax = od_boxes[0][0]
                 if (abs((xmax - xmin) / 2. + xmin - 0.5) < 0.1) and (ymin < 0.4) and (ymax > 0.6):
                     tiaojian = True
+                location = "{}{}{}{}".format(int(ymin * 10), int(xmin * 10), int(ymax * 10), int(xmax * 10))
+            else:
+                for idx in range(od_boxes[0].shape[0]):
+                    if od_scores[0][idx] < 0.7:
+                        break
+                    if int(od_classes[0][idx]) != 1:
+                        continue
+                    res += 1
+                    ymin, xmin, ymax, xmax = od_boxes[0][idx]
+                    if (abs((xmax - xmin) / 2. + xmin - 0.5) < 0.1) and (ymin < 0.4) and (ymax > 0.6):
+                        tiaojian = True
         except Exception as e:
             logging.exception(e)
         finally:
             if res == 1 and tiaojian:
-                return 1
+                return 1, location
             else:
-                return 0
+                return 0, location
 
     def main_func(self):
         start_time = time.time()
@@ -390,7 +398,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         face_count = self.parser_face(user_id, media_id, image)
         time_face = time.time() - tmp_time
         tmp_time = time.time()
-        is_local_color = self.get_is_local_color(image)
+        is_local_color, location = self.get_is_local_color(image, face_count)
         time_od = time.time() - tmp_time
 
         b, g, r = cv2.split(image)
@@ -405,6 +413,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             'mediaInfo': str(json.dumps({
                 "certificateInfo": is_card,
                 "quality": [aesthetic_model.get_res(quality_image), technical_model.get_res(quality_image)],
+                "human_coordinate": location,
             }, ensure_ascii=False)),
             "isBlackAndWhite": is_black_and_white,
             "isLocalColor": is_local_color,
