@@ -4,7 +4,9 @@ from __future__ import division
 from __future__ import print_function
 
 import os
+import re
 import time
+import uuid
 import json
 import pickle
 import logging
@@ -487,37 +489,62 @@ class GenerationWonderfulImageThread(threading.Thread):
                     continue
                 params = json.loads(params)
                 logging.info("开始生成精彩, 剩余数据: {} 条, 当前数据: {}".format(params_count - 1, params))
-                wonderful_type = params.get("type")
-                user_id = params.get("userId")
-                media_id = params.get("mediaId")
-                image_url = params.get('imageUrl', None)
-                image_local_path = params.get('imageLocalPath', None)
+                user_id = params.get("userId", None)
                 callback_url = params.get('callbackUrl', choice(wonderful_callback_url_list))
-                if image_url is not None:
-                    image_path = self.download_image(image_url)
-                else:
-                    oss_key = params.get("oss_key")
-                    image_path = os.path.join(conf.tmp_image_dir, os.path.basename(oss_key))
-                    oss_connect.get_object_to_file(oss_key, image_path)
-                    oss_connect.delete_object(oss_key)
-                assert os.path.isfile(image_path)
+                media_id = params.get("mediaId", None)
+                image_local_path = params.get('imageLocalPath', None)
 
+                wonderful_type = int(params.get("type"))
                 strftime = util.get_str_time()
-                img_name = "{}_{}_{}.jpg".format(media_id, wonderful_type, strftime)
+                img_name = "{}_{}_{}.jpg".format(str(uuid.uuid1()).replace('-', ''), wonderful_type, strftime)
                 output_path = os.path.join(conf.tmp_image_dir, img_name)
                 oss_image_path = "wonderful_image/{}/{}/{}".format(wonderful_type, user_id, img_name)
-
                 tmp_time = time.time()
-                if int(wonderful_type) == 11:  # 风格化照片
-                    # image_enhancement_interface.get_enjancement_img(image_path, output_path)
-                    image_enhancement_model.get_hdr_image(image_path, output_path)
-                elif int(wonderful_type) == 12:  # 自动上色
-                    autocolor_model.get_result_image(image_path, output_path)
-                elif int(wonderful_type) == 9:  # 局部彩色
-                    create_local_color.get_result(image_path, output_path)
+
+                if wonderful_type == 8:  # 过去现在
+                    past_new_data = params.get('pastNowData')
+                    data_parser = []
+                    tmp = None
+                    for word in past_new_data:
+                        if "{" == word:
+                            tmp = word
+                        elif word == "}":
+                            tmp = tmp + word
+                            data_parser.append(tmp)
+                            tmp = None
+                        elif tmp:
+                            tmp = tmp + word
+                    img_url_0 = re.findall(r'imgUrl=(.*)}$', data_parser[0])[0]
+                    img_time_0 = re.findall(r'^{photoTime=(.*), ', data_parser[0])[0]
+                    img_url_1 = re.findall(r'imgUrl=(.*)}$', data_parser[1])[0]
+                    img_time_1 = re.findall(r'^{photoTime=(.*), ', data_parser[1])[0]
+                    image_path_0 = self.download_image(img_url_0)
+                    image_path_1 = self.download_image(img_url_1)
+                    image_tools.create_past_now_img([image_path_0, image_path_1], [img_time_0, img_time_1], output_path)
+                    util.removefile(image_path_0)
+                    util.removefile(image_path_1)
+                else:
+                    image_url = params.get('imageUrl', None)
+                    if image_url is not None:
+                        image_path = self.download_image(image_url)
+                    else:
+                        oss_key = params.get("oss_key")
+                        image_path = os.path.join(conf.tmp_image_dir, os.path.basename(oss_key))
+                        oss_connect.get_object_to_file(oss_key, image_path)
+                        oss_connect.delete_object(oss_key)
+                    assert os.path.isfile(image_path)
+
+                    if int(wonderful_type) == 11:  # 风格化照片
+                        # image_enhancement_interface.get_enjancement_img(image_path, output_path)
+                        image_enhancement_model.get_hdr_image(image_path, output_path)
+                    elif int(wonderful_type) == 12:  # 自动上色
+                        autocolor_model.get_result_image(image_path, output_path)
+                    elif int(wonderful_type) == 9:  # 局部彩色
+                        create_local_color.get_result(image_path, output_path)
+                    util.removefile(image_path)
+
                 logging.info("wonderful_type: {}, 耗时: {}".format(wonderful_type, time.time() - tmp_time))
                 oss_connect.put_object_from_file(oss_image_path, output_path)
-                util.removefile(image_path)
                 util.removefile(output_path)
                 if int(wonderful_type) == 12:
                     continue

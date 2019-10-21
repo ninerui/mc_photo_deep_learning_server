@@ -7,12 +7,13 @@ import os
 import glob
 import imghdr
 import logging
+import datetime
 import subprocess
 
 import cv2
 import pyheif
 import numpy as np
-from PIL import Image, ImageSequence
+from PIL import Image, ImageSequence, ImageFont, ImageDraw
 from skimage import transform as trans
 from urllib.request import urlretrieve
 
@@ -124,19 +125,6 @@ def parser_image(image_path, output_dir):
                     image_path = new_img_path
                 else:
                     res_code = -2
-            # subprocess.run(['heif-convert', image_path, new_img_path])
-            # if os.path.isfile(new_img_path):  # heic only one image
-            #     res_code = 1
-            #     os.remove(image_path)
-            #     image_path = new_img_path
-            # elif os.path.isfile(os.path.join(output_dir, "{}-1.jpg".format(image_id))):  # heic have many image
-            #     res_code = 1
-            #     os.remove(image_path)
-            #     os.rename(os.path.join(output_dir, "{}-1.jpg".format(image_id)), new_img_path)
-            #     image_path = new_img_path
-            #     remove_files(output_dir, '{}-*.jpg'.format(image_id))  # remove multi image
-            # else:
-            #     res_code = -2
         elif image_type.lower() in ['.jpeg', '.png', '.bmp', '.jpg']:
             res_code = 1
         else:
@@ -177,3 +165,68 @@ def download_and_parser_image(image_url, output_dir):
             "img_type": image_get_type,
             "info": PARSER_IMAGE_CODE.get(res_code, None)
         }
+
+
+def resize_image(image, size=(511, 511)):
+    scale_w = size[0] / image.size[0]
+    scale_h = size[1] / image.size[1]
+    if scale_w > scale_h:
+        image = image.resize((size[0], int(scale_w * image.size[1])))
+        start_pix = (image.size[1] - size[1]) // 2
+        image = image.crop((0, start_pix, size[0], size[1] + start_pix))
+    else:
+        image = image.resize((int(scale_h * image.size[0]), size[1]))
+        start_pix = (image.size[0] - size[0]) // 2
+        image = image.crop((start_pix, 0, size[0] + start_pix, size[1]))
+    return image
+
+
+def create_text_mask(img_size, timestamp):
+    photo_time = datetime.datetime.fromtimestamp(timestamp)
+    txt_mask = Image.new('RGBA', img_size, (255, 255, 255, 0))
+    unicode_font_20 = ImageFont.truetype(font='data/PingFang-SC-Bold.ttf', size=20)
+    unicode_font_30 = ImageFont.truetype(font='data/PingFang-SC-Bold.ttf', size=30)
+    draw = ImageDraw.Draw(txt_mask)
+    text00 = u"{}".format(photo_time.year)
+    text01 = r'年'
+    text_size_00 = unicode_font_30.getsize(text00)
+    text_size_01 = unicode_font_20.getsize(text01)
+    text_size_0 = (text_size_00[0] + text_size_01[0], text_size_00[1])
+    text_coordinate_00 = int((img_size[0] - text_size_0[0]) / 2), int((1025 * 0.96) - text_size_00[1])
+    draw.text(text_coordinate_00, text00, font=unicode_font_30, fill=(255, 255, 255, 200))
+    text_coordinate_01 = int((img_size[0] - text_size_0[0]) / 2) + text_size_00[0], int((1025 * 0.96) - text_size_01[1])
+    draw.text(text_coordinate_01, text01, font=unicode_font_20, fill=(255, 255, 255, 200))
+    text1 = u"· {}月{}号 ·".format(photo_time.month, photo_time.day)
+    text_width = unicode_font_20.getsize(text1)
+    text_coordinate = int((img_size[0] - text_width[0]) / 2), int((1025 * 0.9882) - text_width[1])
+    draw.text(text_coordinate, text1, font=unicode_font_20, fill=(255, 255, 255, 170))
+    return txt_mask
+
+
+def create_past_now_img(img_path_list, img_time_list, output_path):
+    image_list = [Image.open(i) for i in img_path_list]
+    image_direction_list = [(i.size[0] / i.size[1]) - 1. for i in image_list]
+    # if sum(image_direction_list) > 0:
+    if False:
+        img_1 = image_list.pop(0)
+        img_1 = resize_image(img_1, size=(1025, 511))
+
+        img_2 = image_list.pop(0)
+        img_2 = resize_image(img_2, size=(1025, 511))
+
+        res_img = Image.new(mode='RGB', size=(1025, 1025), color='white')
+        res_img.paste(img_1, box=(0, 0))
+        res_img.paste(img_2, box=(0, 514))
+    else:
+        img_1 = image_list.pop(0)
+        img_1 = resize_image(img_1, size=(511, 1025))
+        img_1 = img_1.convert('RGBA')
+        img_1 = Image.alpha_composite(img_1, create_text_mask(img_1.size, img_time_list.pop(0)))
+        img_2 = image_list.pop(0)
+        img_2 = resize_image(img_2, size=(511, 1025))
+        img_2 = img_2.convert('RGBA')
+        img_2 = Image.alpha_composite(img_2, create_text_mask(img_2.size, img_time_list.pop(0)))
+        res_img = Image.new(mode='RGB', size=(1025, 1025), color='white')
+        res_img.paste(img_1, box=(0, 0))
+        res_img.paste(img_2, box=(514, 0))
+        res_img.save(output_path, format='png')
