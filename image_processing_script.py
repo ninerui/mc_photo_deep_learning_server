@@ -535,7 +535,6 @@ class GenerationWonderfulImageThread(threading.Thread):
                     assert os.path.isfile(image_path)
 
                     if int(wonderful_type) == 11:  # 风格化照片
-                        # image_enhancement_interface.get_enjancement_img(image_path, output_path)
                         image_enhancement_model.get_hdr_image(image_path, output_path)
                     elif int(wonderful_type) == 12:  # 自动上色
                         autocolor_model.get_result_image(image_path, output_path)
