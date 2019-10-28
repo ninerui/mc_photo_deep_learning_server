@@ -12,6 +12,7 @@ import subprocess
 
 import cv2
 import pyheif
+import piexif
 import numpy as np
 from PIL import Image, ImageSequence, ImageFont, ImageDraw
 from skimage import transform as trans
@@ -254,3 +255,49 @@ def create_past_now_img(img_path_list, img_time_list, output_path):
         res_img.paste(img_1, box=(0, 0))
         res_img.paste(img_2, box=(514, 0))
         res_img.save(output_path, format='png')
+
+
+def push_data_to_dict(source_dict, output_dict, key):
+    data = source_dict.get(key, None)
+    if not data:
+        return output_dict
+    output_dict[key] = data
+    return output_dict
+
+
+def save_image_with_exif(source_img):
+    new_exif_dict = {}
+    exif_data = source_img.info.get("exif", None)
+    if not exif_data:
+        return None
+    exif_dict = piexif.load(exif_data)
+    source_0th = exif_dict.get("0th", None)
+    if source_0th:
+        dict_0th = {}
+        dict_0th = push_data_to_dict(source_0th, dict_0th, piexif.ImageIFD.Model)
+        dict_0th = push_data_to_dict(source_0th, dict_0th, piexif.ImageIFD.Make)
+        dict_0th = push_data_to_dict(source_0th, dict_0th, piexif.ImageIFD.DateTime)
+        dict_0th = push_data_to_dict(source_0th, dict_0th, piexif.ImageIFD.Orientation)
+        if len(dict_0th) != 0:
+            new_exif_dict["0th"] = dict_0th
+    source_exif = exif_dict.get("Exif", None)
+    if source_exif:
+        dict_exif = {}
+        dict_exif = push_data_to_dict(source_exif, dict_exif, piexif.ExifIFD.ExifVersion)
+        dict_exif = push_data_to_dict(source_exif, dict_exif, piexif.ExifIFD.DateTimeOriginal)
+        dict_exif = push_data_to_dict(source_exif, dict_exif, piexif.ExifIFD.ColorSpace)
+        if len(dict_exif) != 0:
+            new_exif_dict["Exif"] = dict_exif
+    source_gps = exif_dict.get("GPS", None)
+    if source_gps:
+        new_exif_dict["GPS"] = source_gps
+    source_interop = exif_dict.get("Interop", None)
+    if source_interop:
+        new_exif_dict["Interop"] = source_interop
+    source_thumbnail = exif_dict.get("thumbnail", None)
+    if source_thumbnail:
+        new_exif_dict["thumbnail"] = source_thumbnail
+    if len(new_exif_dict) != 0:
+        return piexif.dump(new_exif_dict)
+    else:
+        return None

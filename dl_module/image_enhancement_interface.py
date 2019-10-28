@@ -10,6 +10,7 @@ import tensorflow.contrib.slim as slim
 from tensorflow.python.ops import nn
 
 from utils import tf_tools
+from utils import image_tools
 
 
 def lrelu(x):
@@ -189,6 +190,7 @@ class ImageHDRs:
         self.input2 = graph_def.get_tensor_by_name('Placeholder_1:0')
 
     def get_hdr_image(self, input_file, output_file):
+        input_img_from_pil = Image.open(input_file)
         input_img = cv2.imread(input_file, 1)
         h, w, _ = input_img.shape
         os.remove(input_file)
@@ -238,4 +240,18 @@ class ImageHDRs:
         enhance_test_img = np.concatenate(y_list, axis=0)
         enhance_test_img = enhance_test_img[:h, :w, :]
         enhance_test_img = safe_casting(enhance_test_img * tf.as_dtype(np.uint8).max, np.uint8)
-        cv2.imwrite(output_file, enhance_test_img)
+        img = Image.fromarray(cv2.cvtColor(enhance_test_img, cv2.COLOR_BGR2RGB))
+        exif_bytes = image_tools.save_image_with_exif(input_img_from_pil)
+        img.save(output_file, "jpeg", exif=exif_bytes)
+        # import piexif
+        # im = Image.open(input_file)
+        # exif_dict = piexif.load(im.info["exif"])
+        # w, h = img.size
+        # new_exif_dict = {}
+        # new_exif_dict["0th"][piexif.ImageIFD.XResolution] = (w, 1)
+        # new_exif_dict["0th"][piexif.ImageIFD.YResolution] = (h, 1)
+        # print(exif_dict)
+        # exif_bytes = piexif.dump(exif_dict)
+        # img.save('2.jpg', "jpeg", exif=exif_bytes)
+        # img.save(output_file, 'jpeg')
+        # cv2.imwrite(output_file, cv2.cvtColor(enhance_test_img, cv2.COLOR_BGR2BGRA))
