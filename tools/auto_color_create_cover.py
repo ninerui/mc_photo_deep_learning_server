@@ -21,6 +21,19 @@ def resize_image(image, size=(511, 511)):
     return image
 
 
+def read_img(img_path):
+    img = Image.open(img_path)
+    exif = dict(img.getexif().items())
+    orientation = exif.get(274, None)  # 图片方向信息存在274里面
+    if orientation == 3:
+        img = img.rotate(180, expand=True)
+    elif orientation == 6:
+        img = img.rotate(270, expand=True)
+    elif orientation == 8:
+        img = img.rotate(90, expand=True)
+    return img
+
+
 if __name__ == '__main__':
     try:
         args = sys.argv[1:]
@@ -29,7 +42,7 @@ if __name__ == '__main__':
         img_count = len(img_path_list)
         assert 2 <= img_count <= 9
         if img_count == 2:
-            image_list = [Image.open(i) for i in img_path_list]
+            image_list = [read_img(i) for i in img_path_list]
             image_direction_list = [(i.size[0] / i.size[1]) - 1. for i in image_list]
             if sum(image_direction_list) > 0:
                 img_1 = image_list.pop(0)
@@ -49,7 +62,7 @@ if __name__ == '__main__':
                 res_img.paste(img_2, box=(514, 0))
 
         elif img_count == 3:
-            image_list = [Image.open(i) for i in img_path_list]
+            image_list = [read_img(i) for i in img_path_list]
             image_direction_list = [(i.size[0] - i.size[1]) for i in image_list]
 
             hx_0_idx = image_direction_list.index(max(image_direction_list))
@@ -69,7 +82,7 @@ if __name__ == '__main__':
             res_img.paste(img_2, box=(514, 514))
 
         elif img_count == 4:
-            image_list = [Image.open(i) for i in img_path_list]
+            image_list = [read_img(i) for i in img_path_list]
 
             img_1 = image_list.pop(0)
             img_1 = resize_image(img_1, size=(511, 511))
@@ -90,7 +103,7 @@ if __name__ == '__main__':
             res_img.paste(img_4, box=(514, 0))
 
         elif img_count == 5:
-            image_list = [Image.open(i) for i in img_path_list]
+            image_list = [read_img(i) for i in img_path_list]
             image_direction_list = [(i.size[0] - i.size[1]) for i in image_list]
 
             hx_0_idx = image_direction_list.index(max(image_direction_list))
@@ -118,7 +131,7 @@ if __name__ == '__main__':
             res_img.paste(img_4, box=(514, 1028))
 
         elif img_count == 6:
-            image_list = [Image.open(i) for i in img_path_list]
+            image_list = [read_img(i) for i in img_path_list]
 
             img_0 = image_list.pop(0)
             img_0 = resize_image(img_0, size=(1025, 1025))
@@ -147,7 +160,7 @@ if __name__ == '__main__':
             res_img.paste(img_5, box=(1028, 0))
 
         elif img_count == 7:
-            image_list = [Image.open(i) for i in img_path_list]
+            image_list = [read_img(i) for i in img_path_list]
             image_direction_list = [(i.size[0] - i.size[1]) for i in image_list]
 
             hx_0_idx = image_direction_list.index(max(image_direction_list))
@@ -185,7 +198,7 @@ if __name__ == '__main__':
             res_img.paste(img_6, box=(0, 1542))
 
         elif img_count == 9:
-            image_list = [Image.open(i) for i in img_path_list]
+            image_list = [read_img(i) for i in img_path_list]
 
             img_1 = image_list.pop(0)
             img_1 = resize_image(img_1, size=(511, 511))

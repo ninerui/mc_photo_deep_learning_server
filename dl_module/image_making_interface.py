@@ -10,7 +10,7 @@ class ImageMakingWithOpenImage(object):
         self.oi_5000_input = oi_5000_graph.get_tensor_by_name('input_values:0')
         self.oi_5000_prob = oi_5000_graph.get_tensor_by_name('multi_predictions:0')
 
-    def get_tag_from_one(self, img_path, threshold=0.8):
+    def get_tag_from_one(self, img_path, threshold=0.8, debug=False):
         predictions_eval = self.oi_5000_sess.run(
             self.oi_5000_prob,
             feed_dict={self.oi_5000_input: [tf.gfile.FastGFile(img_path, 'rb').read()]})
@@ -18,6 +18,8 @@ class ImageMakingWithOpenImage(object):
         tag = []
         for i in top_k:
             confidence = predictions_eval[i]
+            if debug:
+                print(i, confidence)
             if confidence < threshold:
                 break
             tag.append(i + 1)

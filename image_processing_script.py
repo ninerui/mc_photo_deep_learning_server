@@ -534,12 +534,14 @@ class GenerationWonderfulImageThread(threading.Thread):
                         oss_connect.delete_object(oss_key)
                     assert os.path.isfile(image_path)
 
-                    if int(wonderful_type) == 11:  # 风格化照片
+                    if wonderful_type == 11:  # 风格化照片
                         image_enhancement_model.get_hdr_image(image_path, output_path)
-                    elif int(wonderful_type) == 12:  # 自动上色
+                    elif wonderful_type == 12:  # 自动上色
                         autocolor_model.get_result_image(image_path, output_path)
-                    elif int(wonderful_type) == 9:  # 局部彩色
+                    elif wonderful_type == 9:  # 局部彩色
                         create_local_color.get_result(image_path, output_path)
+                    elif wonderful_type == 16:  # 增强画质
+                        pass
                     util.removefile(image_path)
 
                 logging.info("wonderful_type: {}, 耗时: {}".format(wonderful_type, time.time() - tmp_time))
