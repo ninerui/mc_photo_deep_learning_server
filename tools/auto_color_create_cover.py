@@ -27,7 +27,7 @@ if __name__ == '__main__':
         output_path = args.pop(-1)
         img_path_list = args
         img_count = len(img_path_list)
-        assert 2 <= img_count <= 7
+        assert 2 <= img_count <= 9
         if img_count == 2:
             image_list = [Image.open(i) for i in img_path_list]
             image_direction_list = [(i.size[0] / i.size[1]) - 1. for i in image_list]
