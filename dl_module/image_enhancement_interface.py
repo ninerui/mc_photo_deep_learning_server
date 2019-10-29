@@ -193,7 +193,7 @@ class ImageHDRs:
         input_img_from_pil = Image.open(input_file)
         input_img = cv2.imread(input_file, 1)
         h, w, _ = input_img.shape
-        os.remove(input_file)
+        # os.remove(input_file)
         if max(h, w) > 2048:
             if h >= w:
                 longerSize = h
