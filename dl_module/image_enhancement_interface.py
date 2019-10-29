@@ -242,7 +242,10 @@ class ImageHDRs:
         enhance_test_img = safe_casting(enhance_test_img * tf.as_dtype(np.uint8).max, np.uint8)
         img = Image.fromarray(cv2.cvtColor(enhance_test_img, cv2.COLOR_BGR2RGB))
         exif_bytes = image_tools.save_image_with_exif(input_img_from_pil)
-        img.save(output_file, "jpeg", exif=exif_bytes)
+        if exif_bytes:
+            img.save(output_file, format="jpeg", exif=exif_bytes, quality=95, subsampling=0)
+        else:
+            img.save(output_file, format="jpeg", quality=95, subsampling=0)
         # import piexif
         # im = Image.open(input_file)
         # exif_dict = piexif.load(im.info["exif"])

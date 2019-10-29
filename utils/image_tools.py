@@ -254,7 +254,7 @@ def create_past_now_img(img_path_list, img_time_list, output_path):
         res_img = Image.new(mode='RGB', size=(1025, 1025), color='white')
         res_img.paste(img_1, box=(0, 0))
         res_img.paste(img_2, box=(514, 0))
-        res_img.save(output_path, format='png')
+    res_img.save(output_path, format='png', quality=95)
 
 
 def push_data_to_dict(source_dict, output_dict, key):
