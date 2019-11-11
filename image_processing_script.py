@@ -345,7 +345,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         except Exception as e:
             logging.exception("{}上传失败\n{}".format(media_id, e))
         finally:
-            return 0
+            return face_count
 
     def get_is_local_color(self, image):
         res = 0
