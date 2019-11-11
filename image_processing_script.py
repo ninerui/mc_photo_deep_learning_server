@@ -337,10 +337,10 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         except Exception as e:
             logging.exception("{}上传失败\n{}".format(media_id, e))
         finally:
-            return 0
+            return face_count
 
     def get_is_local_color(self, image, face_count):
-        res = 0
+        res = 1
         tiaojian = False
         location = ""
         try:
@@ -401,6 +401,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         time_face = time.time() - tmp_time
         tmp_time = time.time()
         is_local_color, location = self.get_is_local_color(image, face_count)
+        # logging.info("face_count: {}, human_coordinate:{}".format(face_count,location))
         time_od = time.time() - tmp_time
 
         b, g, r = cv2.split(image)
