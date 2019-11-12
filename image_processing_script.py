@@ -515,10 +515,18 @@ class GenerationWonderfulImageThread(threading.Thread):
                             tmp = None
                         elif tmp:
                             tmp = tmp + word
-                    img_url_0 = re.findall(r'imgUrl=(.*)}$', data_parser[0])[0]
-                    img_time_0 = re.findall(r'^{photoTime=(.*), ', data_parser[0])[0]
-                    img_url_1 = re.findall(r'imgUrl=(.*)}$', data_parser[1])[0]
-                    img_time_1 = re.findall(r'^{photoTime=(.*), ', data_parser[1])[0]
+                    img_data_0 = data_parser[0].split(',')
+                    img_data_1 = data_parser[1].split(',')
+
+                    img_url_0 = img_data_0[0][8:]
+                    img_time_0 = int(img_data_0[1][11:-1])/1000
+
+                    img_url_1 = img_data_1[0][8:]
+                    img_time_1 = int(img_data_1[1][11:-1])/1000
+                    # img_url_0 = re.findall(r'^{imgUrl=(.*),', data_parser[0])[0]
+                    # img_time_0 = re.findall(r'photoTime=(.*)}$, ', data_parser[0])[0]
+                    # img_url_1 = re.findall(r'^{imgUrl=(.*),', data_parser[1])[0]
+                    # img_time_1 = re.findall(r'photoTime=(.*)}$, ', data_parser[1])[0]
                     image_path_0 = self.download_image(img_url_0)
                     image_path_1 = self.download_image(img_url_1)
                     image_tools.create_past_now_img([image_path_0, image_path_1], [img_time_0, img_time_1], output_path)

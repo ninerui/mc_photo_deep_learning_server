@@ -226,8 +226,21 @@ def create_text_mask_row(img_size, timestamp):
     return txt_mask
 
 
+def read_img(img_path):
+    img = Image.open(img_path)
+    exif = dict(img.getexif().items())
+    orientation = exif.get(274, None)  # 图片方向信息存在274里面
+    if orientation == 3:
+        img = img.rotate(180, expand=True)
+    elif orientation == 6:
+        img = img.rotate(270, expand=True)
+    elif orientation == 8:
+        img = img.rotate(90, expand=True)
+    return img
+
+
 def create_past_now_img(img_path_list, img_time_list, output_path):
-    image_list = [Image.open(i) for i in img_path_list]
+    image_list = [read_img(i) for i in img_path_list]
     image_direction_list = [(i.size[0] / i.size[1]) - 1. for i in image_list]
     if sum(image_direction_list) > 0:
         # if False:

@@ -190,7 +190,7 @@ class ImageHDRs:
         self.input2 = graph_def.get_tensor_by_name('Placeholder_1:0')
 
     def get_hdr_image(self, input_file, output_file):
-        input_img_from_pil = Image.open(input_file)
+        input_img_from_pil = image_tools.read_img(input_file)
         input_img = cv2.imread(input_file, 1)
         h, w, _ = input_img.shape
         # os.remove(input_file)
