@@ -371,6 +371,22 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             else:
                 return 0, location
 
+    def parser_one_image(self, image_path, **kwargs):
+        tmp_time = time.time()
+        if kwargs.get('making', True):
+            tag = oi_5000_model.get_tag_from_one(image_path)
+            time_making = time.time() - tmp_time
+            tmp_time = time.time()
+        # 读取图片
+        image = cv2.imread(image_path)
+        if kwargs.get('ic_card_detect', True):
+            have_id_card = have_idcard_model.detect_id_card(image)
+            if have_id_card:
+                is_card = is_idcard_model.get_res_from_one(image)
+            else:
+                is_card = []
+            time_ic = time.time() - tmp_time
+
     def main_func(self):
         start_time = time.time()
         params_data = get_redis_next_data(conf.redis_image_making_list_name)
@@ -519,14 +535,10 @@ class GenerationWonderfulImageThread(threading.Thread):
                     img_data_1 = data_parser[1].split(',')
 
                     img_url_0 = img_data_0[0][8:]
-                    img_time_0 = int(img_data_0[1][11:-1])/1000
+                    img_time_0 = int(img_data_0[1][11:-1]) / 1000
 
                     img_url_1 = img_data_1[0][8:]
-                    img_time_1 = int(img_data_1[1][11:-1])/1000
-                    # img_url_0 = re.findall(r'^{imgUrl=(.*),', data_parser[0])[0]
-                    # img_time_0 = re.findall(r'photoTime=(.*)}$, ', data_parser[0])[0]
-                    # img_url_1 = re.findall(r'^{imgUrl=(.*),', data_parser[1])[0]
-                    # img_time_1 = re.findall(r'photoTime=(.*)}$, ', data_parser[1])[0]
+                    img_time_1 = int(img_data_1[1][11:-1]) / 1000
                     image_path_0 = self.download_image(img_url_0)
                     image_path_1 = self.download_image(img_url_1)
                     image_tools.create_past_now_img([image_path_0, image_path_1], [img_time_0, img_time_1], output_path)
@@ -607,7 +619,9 @@ if __name__ == '__main__':
         oi_5000_model = image_making_interface.ImageMakingWithOpenImage()
         fd_ssd_detection = face_detection_interface.FaceDetectionWithSSDMobilenet()
         fd_mtcnn_detection = face_detection_interface.FaceDetectionWithMtcnnTF(steps_threshold=[0.6, 0.7, 0.8])
-        is_idcard_model = zhouwen_image_card_classify_interface.IDCardClassify()
+        is_idcard_model = zhouwen_image_card_classify_interface.IDCardClassify(
+            model_path='./models/zhouwen_models/id_card_classifly_v1.2.pb'
+        )
         object_detection_model = object_detection_interface.ObjectDetectionWithSSDMobilenetV2()
         have_idcard_model = IDCardDetection()
         technical_model = TechnicalQualityModelWithTF()
@@ -616,8 +630,6 @@ if __name__ == '__main__':
     if wonderful_gen_thread_num > 0:
         autocolor_model = ImageAutoColor()
         image_enhancement_model = image_enhancement_interface.ImageHDRs()
-        # image_enhancement_model = image_enhancement_interface.AIChallengeWithDPEDSRCNN()
-        # pose_estimator_model = TfPoseEstimator('./models/pose_estimator_models.pb', target_size=(432, 368))
         create_local_color = ImageLocalColor()
 
     # 创建线程并开始图片打标线程

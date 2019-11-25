@@ -14,14 +14,14 @@ class IDCardClassify:
         self.sess.graph.as_default()
         tf.import_graph_def(graph_def, name='')
         self.input = self.sess.graph.get_tensor_by_name('id_card_classify/input_1:0')
-        self.softmax_tensor = self.sess.graph.get_tensor_by_name('id_card_classify/fc1000/Softmax:0')
+        self.softmax_tensor = self.sess.graph.get_tensor_by_name('id_card_classify/act_softmax/Softmax:0')
 
     def get_res_from_one(self, img):
         with self.sess.graph.as_default():
             img = cv2.cvtColor(cv2.resize(img, (64, 64)), cv2.COLOR_BGR2GRAY)
             for i in range(4):
-                img = np.rot90(img, k=i)
-                img_ = [np.expand_dims(img, axis=2)]
+                img_ = np.rot90(img, k=i)
+                img_ = [np.expand_dims(img_, axis=2)]
                 img_ = np.array(img_) / 255.
                 pred = self.sess.run(self.softmax_tensor, {self.input: img_}).tolist()
                 pred_ = pred[0]
