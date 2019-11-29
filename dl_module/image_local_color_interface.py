@@ -1,6 +1,8 @@
 import numpy as np
-import tensorflow as tf
 from PIL import Image
+import tensorflow as tf
+
+from utils import image_tools
 
 
 class DeepLabModel(object):
@@ -54,7 +56,8 @@ class ImageLocalColor(object):
         self.MODEL = DeepLabModel('./models/deeplabv3_pascal_trainval_2018_01_04.pb')
 
     def get_result(self, input, output):
-        original_im = Image.open(input)
+        # original_im = Image.open(input)
+        original_im = image_tools.read_img(input)
         resized_im, seg_map = self.MODEL.run(original_im)
         seg_map = np.where(seg_map == 15, seg_map, 0)
 
