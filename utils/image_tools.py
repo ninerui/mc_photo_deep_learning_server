@@ -182,50 +182,6 @@ def resize_image(image, size=(511, 511)):
     return image
 
 
-# def create_text_mask(img_size, timestamp):
-#     photo_time = datetime.datetime.fromtimestamp(timestamp)
-#     txt_mask = Image.new('RGBA', img_size, (255, 255, 255, 0))
-#     unicode_font_20 = ImageFont.truetype(font='data/PingFang-SC-Bold.ttf', size=20)
-#     unicode_font_30 = ImageFont.truetype(font='data/PingFang-SC-Bold.ttf', size=30)
-#     draw = ImageDraw.Draw(txt_mask)
-#     text00 = u"{}".format(photo_time.year)
-#     text01 = r'年'
-#     text_size_00 = unicode_font_30.getsize(text00)
-#     text_size_01 = unicode_font_20.getsize(text01)
-#     text_size_0 = (text_size_00[0] + text_size_01[0], text_size_00[1])
-#     text_coordinate_00 = int((img_size[0] - text_size_0[0]) / 2), int((1025 * 0.96) - text_size_00[1])
-#     draw.text(text_coordinate_00, text00, font=unicode_font_30, fill=(255, 255, 255, 200))
-#     text_coordinate_01 = int((img_size[0] - text_size_0[0]) / 2) + text_size_00[0], int((1025 * 0.96) - text_size_01[1])
-#     draw.text(text_coordinate_01, text01, font=unicode_font_20, fill=(255, 255, 255, 200))
-#     text1 = u"· {}月{}号 ·".format(photo_time.month, photo_time.day)
-#     text_width = unicode_font_20.getsize(text1)
-#     text_coordinate = int((img_size[0] - text_width[0]) / 2), int((1025 * 0.9882) - text_width[1])
-#     draw.text(text_coordinate, text1, font=unicode_font_20, fill=(255, 255, 255, 170))
-#     return txt_mask
-#
-#
-# def create_text_mask_row(img_size, timestamp):
-#     photo_time = datetime.datetime.fromtimestamp(timestamp)
-#     txt_mask = Image.new('RGBA', img_size, (255, 255, 255, 0))
-#     unicode_font_20 = ImageFont.truetype(font='data/PingFang-SC-Bold.ttf', size=20)
-#     unicode_font_30 = ImageFont.truetype(font='data/PingFang-SC-Bold.ttf', size=30)
-#     draw = ImageDraw.Draw(txt_mask)
-#     text00 = u"{}".format(photo_time.year)
-#     text01 = r'年'
-#     text_size_00 = unicode_font_30.getsize(text00)
-#     text_size_01 = unicode_font_20.getsize(text01)
-#     text_size_0 = (text_size_00[0] + text_size_01[0], text_size_00[1])
-#     text_coordinate_00 = int(img_size[0] * 0.02), int((511 * 0.97) - text_size_00[1])
-#     draw.text(text_coordinate_00, text00, font=unicode_font_30, fill=(255, 255, 255, 200))
-#     text_coordinate_01 = int((img_size[0] * 0.02) + text_size_00[0]), int((511 * 0.97) - text_size_01[1])
-#     draw.text(text_coordinate_01, text01, font=unicode_font_20, fill=(255, 255, 255, 200))
-#     text1 = u"· {}月{}号".format(photo_time.month, photo_time.day)
-#     text_width = unicode_font_20.getsize(text1)
-#     text_coordinate = int((img_size[0] * 0.98) - text_width[0]), int((511 * 0.97) - text_width[1])
-#     draw.text(text_coordinate, text1, font=unicode_font_20, fill=(255, 255, 255, 170))
-#     return txt_mask
-
-
 def read_img(img_path):
     img = Image.open(img_path)
     exif = dict(img.getexif().items())
@@ -239,77 +195,23 @@ def read_img(img_path):
     return img
 
 
-# def create_past_now_img(img_path_list, img_time_list, output_path):
-#     image_list = [read_img(i) for i in img_path_list]
-#     image_direction_list = [(i.size[0] / i.size[1]) - 1. for i in image_list]
-#     if sum(image_direction_list) > 0:
-#         # if False:
-#         img_1 = image_list.pop(0)
-#         resize_w1 = int(img_1.size[1]*(690/img_1.size[0]))
-#         img_1 = img_1.resize((690, resize_w1))
-#         img_1 = img_1.convert('RGBA')
-#         txt_mask = Image.new('RGBA', img_1.size, (0, 0, 0, 0))
-#         g_a = (255 * 0.52) / int(txt_mask.size[1]*0.45)
-#         lala = 0
-#         for i in range(int(txt_mask.size[1]*0.55), txt_mask.size[1]):
-#             for j in range(txt_mask.size[0]):
-#                 txt_mask.putpixel((j, i), (0, 0, 0, int(lala * g_a)))
-#             lala += 1
-#         img_1 = Image.alpha_composite(img_1, txt_mask)
-#         img_1 = Image.alpha_composite(img_1, create_text_mask_row_linshi(img_1.size, img_time_list.pop(0)))
-#         img_2 = image_list.pop(0)
-#         resize_w2 = int(img_2.size[1]*(690/img_2.size[0]))
-#         img_2 = img_2.resize((690, resize_w2))
-#         img_2 = img_2.convert('RGBA')
-#         img_2 = Image.alpha_composite(img_2, txt_mask)
-#         img_2 = Image.alpha_composite(img_2, create_text_mask_row_linshi(img_2.size, img_time_list.pop(0)))
-#         res_img = Image.new(mode='RGB', size=(690, resize_w1+resize_w2+10), color='white')
-#         res_img.paste(img_1, box=(20, 20))
-#         res_img.paste(img_2, box=(20, resize_w1+10+20))
-#     else:
-#         img_1 = image_list.pop(0)
-#         resize_h1 = int(img_1.size[1]*(320/img_1.size[0]))
-#         img_1 = img_1.resize((320, resize_h1))
-#         img_1 = img_1.convert('RGBA')
-#         txt_mask = Image.new('RGBA', img_1.size, (0, 0, 0, 0))
-#         g_a = (255 * 0.52) / int(txt_mask.size[1]*0.45)
-#         lala = 0
-#         for i in range(int(txt_mask.size[1]*0.55), txt_mask.size[1]):
-#             for j in range(txt_mask.size[0]):
-#                 txt_mask.putpixel((j, i), (0, 0, 0, int(lala * g_a)))
-#             lala += 1
-#         # txt_mask.save('3.png')
-#         img_1 = Image.alpha_composite(img_1, txt_mask)
-#         img_1 = Image.alpha_composite(img_1, create_text_mask_linshi(img_1.size, img_time_list.pop(0)))
-#         img_2 = image_list.pop(0)
-#         resize_h2 = int(img_2.size[1]*(320/img_2.size[0]))
-#         img_2=img_2.resize((320, resize_h2))
-#         # img_2 = resize_image(img_2, size=(511, 1025))
-#         img_2 = img_2.convert('RGBA')
-#         img_2 = Image.alpha_composite(img_2, txt_mask)
-#         img_2 = Image.alpha_composite(img_2, create_text_mask_linshi(img_2.size, img_time_list.pop(0)))
-#         res_img = Image.new(mode='RGB', size=(690, resize_h1), color='white')
-#         res_img.paste(img_1, box=(20, 20))
-#         res_img.paste(img_2, box=(320+10+20, 20))
-#     res_img.save(output_path, format='png', quality=95)
 def create_past_now_img(img_path_list, img_time_list, output_path):
     image_list = [read_img(i) for i in img_path_list]
     image_direction_list = [(i.size[0] / i.size[1]) - 1. for i in image_list]
-    # if sum(image_direction_list) > 0:
-    if sum(image_direction_list) == -1:
+    if sum(image_direction_list) > 0:
         img_1 = image_list.pop(0)
-        resize_w1 = int(img_1.size[1] * (690 / img_1.size[0]))
-        img_1 = img_1.resize((690, resize_w1))
+        resize_h1 = int(img_1.size[1] * (690 / img_1.size[0]))
+        img_1 = img_1.resize((690, resize_h1))
 
         img_2 = image_list.pop(0)
-        resize_w2 = int(img_2.size[1] * (690 / img_2.size[0]))
-        img_2 = img_2.resize((690, resize_w2))
+        resize_h2 = int(img_2.size[1] * (690 / img_2.size[0]))
+        img_2 = img_2.resize((690, resize_h2))
 
-        resize_w = min(resize_w1, resize_w2)
-        img_1 = img_1.crop(((resize_w1 - resize_w) // 2, 0, (resize_w1 - resize_w) // 2 + resize_w, 320)).resize(
-            (690, resize_w)).convert('RGBA')
-        img_2 = img_2.crop(((resize_w2 - resize_w) // 2, 0, (resize_w2 - resize_w) // 2 + resize_w, 320)).resize(
-            (690, resize_w)).convert('RGBA')
+        resize_h = min(resize_h1, resize_h2)
+        img_1 = img_1.crop((0, (resize_h1 - resize_h) // 2, 690, (resize_h1 - resize_h) // 2 + resize_h)).resize(
+            (690, resize_h)).convert('RGBA')
+        img_2 = img_2.crop((0, (resize_h2 - resize_h) // 2, 690, (resize_h2 - resize_h) // 2 + resize_h)).resize(
+            (690, resize_h)).convert('RGBA')
 
         txt_mask = Image.new('RGBA', img_1.size, (0, 0, 0, 0))
         g_a = (255 * 0.52) / int(txt_mask.size[1] * 0.45)
@@ -324,9 +226,9 @@ def create_past_now_img(img_path_list, img_time_list, output_path):
         img_2 = Image.alpha_composite(img_2, txt_mask)
         img_2 = Image.alpha_composite(img_2, create_text_mask_row_linshi(img_2.size, img_time_list.pop(0)))
 
-        res_img = Image.new(mode='RGB', size=(690, resize_w + resize_w + 10), color='white')
+        res_img = Image.new(mode='RGB', size=(690, resize_h + resize_h + 10), color='white')
         res_img.paste(img_1, box=(20, 20))
-        res_img.paste(img_2, box=(20, resize_w1 + 10 + 20))
+        res_img.paste(img_2, box=(20, resize_h + 10 + 20))
     else:
         img_1 = image_list.pop(0)
         resize_h1 = int(img_1.size[1] * (320 / img_1.size[0]))
