@@ -638,12 +638,12 @@ class GenerationWonderfulImageThread(threading.Thread):
                     # img_data_0 = data_parser[0].split(',')
                     # img_data_1 = data_parser[1].split(',')
 
-                    img_data_0 = json.loads(past_new_data[0])
+                    img_data_0 = past_new_data[0]
                     # img_data_0 = json.loads(data_parser[0])
                     img_url_0 = img_data_0.get("imgUrl")
                     img_time_0 = int(img_data_0.get("photoTime")) // 1000
                     img_human_0 = img_data_0.get("tempHumanCoordinate")
-                    img_data_1 = json.loads(past_new_data[1])
+                    img_data_1 = past_new_data[1]
                     # img_data_1 = json.loads(data_parser[1])
                     img_url_1 = img_data_1.get("imgUrl")
                     img_time_1 = int(img_data_1.get("photoTime")) // 1000
