@@ -624,11 +624,11 @@ class GenerationWonderfulImageThread(threading.Thread):
 
                 if wonderful_type == 8:  # 过去现在
                     past_new_data = params.get('pastNowData')
-                    img_data_0 = past_new_data[0]
+                    img_data_0 = json.loads(past_new_data[0])
                     img_url_0 = img_data_0.get("imgUrl")
                     img_time_0 = int(img_data_0.get("photoTime")) // 1000
                     img_human_0 = img_data_0.get("tempHumanCoordinate")
-                    img_data_1 = past_new_data[1]
+                    img_data_1 = json.loads(past_new_data[1])
                     img_url_1 = img_data_1.get("imgUrl")
                     img_time_1 = int(img_data_1.get("photoTime")) // 1000
                     img_human_1 = img_data_1.get("tempHumanCoordinate")
