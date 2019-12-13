@@ -15,9 +15,10 @@ from random import choice
 
 import cv2
 import requests
+import imagehash
 import numpy as np
 import tensorflow as tf
-from PIL import ImageFile
+from PIL import ImageFile, Image
 
 import conf
 from utils import connects, util, image_tools
@@ -371,7 +372,77 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             else:
                 return 0, location
 
-    def parser_one_image(self, image_path, **kwargs):
+    # def get_face_info_from_image(self, image):
+    #     face_info_list = []
+    #     try:
+    #         image_np = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    #         im_height, im_width = image.shape[:2]
+    #         f = min((4096. / max(image.shape[0], image.shape[1])), 1.0)
+    #         image_r = cv2.resize(image, (int(image.shape[1] * f), int(image.shape[0] * f)))
+    #         image_np_expanded = np.expand_dims(image_r, axis=0)
+    #         fd_boxes_, fd_scores_ = fd_ssd_detection.detect_face(image_np_expanded)
+    #         for idx in range(fd_boxes_[0].shape[0]):
+    #             if fd_scores_[0][idx] < 0.7:
+    #                 break
+    #             ymin, xmin, ymax, xmax = fd_boxes_[0][idx]
+    #             add_y_border = (ymax - ymin) * 0.1
+    #             add_x_border = (xmax - xmin) * 0.1
+    #             xmin_, xmax_ = max(0, xmin - add_x_border), min(1, xmax + add_x_border)
+    #             ymin_, ymax_ = max(0, ymin - add_y_border), min(1, ymax + add_y_border)
+    #             left, right, top, bottom = map(
+    #                 int, (xmin_ * im_width, xmax_ * im_width, ymin_ * im_height, ymax_ * im_height))
+    #
+    #             face_image = image_np[top:bottom, left:right, :]
+    #             if max(face_image.shape[:2]) < 56.:
+    #                 continue
+    #             face_image_resize, im_scale = image_resize(face_image)
+    #             mtcnn_res = fd_mtcnn_detection.detect_face(face_image_resize)
+    #             if not mtcnn_res:
+    #                 continue
+    #             mtcnn_scare = mtcnn_res['confidence']
+    #             if mtcnn_scare < 0.96:
+    #                 continue
+    #             mtcnn_box = mtcnn_res['box']
+    #             if max(mtcnn_box[2:]) < 50.:
+    #                 continue
+    #             mtcnn_points = mtcnn_res['keypoints']
+    #             mtcnn_points = np.asarray([
+    #                 [mtcnn_points['left_eye'][0] / im_scale + left, mtcnn_points['left_eye'][1] / im_scale + top],
+    #                 [mtcnn_points['right_eye'][0] / im_scale + left, mtcnn_points['right_eye'][1] / im_scale + top],
+    #                 [mtcnn_points['nose'][0] / im_scale + left, mtcnn_points['nose'][1] / im_scale + top],
+    #                 [mtcnn_points['mouth_left'][0] / im_scale + left, mtcnn_points['mouth_left'][1] / im_scale + top],
+    #                 [mtcnn_points['mouth_right'][0] / im_scale + left, mtcnn_points['mouth_right'][1] / im_scale + top],
+    #             ])
+    #             warped = image_tools.preprocess(image_np, [112, 112], bbox=mtcnn_box, landmark=mtcnn_points)
+    #
+    #
+    #
+    #             face_image_path = os.path.join(
+    #                 conf.tmp_image_dir, "{}_{}.jpg".format(media_id, idx))
+    #             cv2.imwrite(face_image_path, cv2.cvtColor(face_image, cv2.COLOR_RGB2BGR))
+    #             oss_face_image_name = "face_cluster_data/{}/face_images/{}_{}.jpg".format(
+    #                 user_id, media_id, idx)
+    #             oss_connect.put_object_from_file(oss_face_image_name, face_image_path)
+    #             util.removefile(face_image_path)
+    #
+    #             redis_user_key = conf.redis_face_info_name.format(user_id)
+    #             if redis_connect.sadd(conf.redis_face_info_key_set, redis_user_key) == 1:
+    #                 redis_connect.lpush(conf.redis_face_info_key_list, redis_user_key)
+    #             # if redis_connect.llen(redis_user_key) == 0:
+    #             #     r_set_code = redis_connect.sadd(conf.redis_face_info_key_set, redis_user_key)
+    #             redis_connect.lpush(redis_user_key, json.dumps({
+    #                 "media_id": media_id,
+    #                 "face_id": "{}_{}".format(media_id, idx),
+    #                 "face_box": [left, top, right - left, bottom - top],
+    #                 "face_data": warped.tolist(),
+    #             }))
+    #             face_count += 1
+    #     except Exception as e:
+    #         logging.exception("{}上传失败\n{}".format(media_id, e))
+    #     finally:
+    #         return face_count
+
+    def parser_picture(self, image_path, **kwargs):
         tmp_time = time.time()
         if kwargs.get('making', True):
             tag = oi_5000_model.get_tag_from_one(image_path)
@@ -386,6 +457,39 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             else:
                 is_card = []
             time_ic = time.time() - tmp_time
+
+    def parser_video(self, file_path):
+        videoCapture = cv2.VideoCapture(file_path)
+        fps = videoCapture.get(cv2.CAP_PROP_FPS)
+        frames = videoCapture.get(cv2.CAP_PROP_FRAME_COUNT)
+        logging.info(f"video fps: {fps}, video frames: {frames}")
+        if frames // fps > 50:  # 视频超过了50s，则最多取50张
+            get_frame_list = [int(frames // 50) * i for i in range(50)]
+        else:
+            get_frame_list = [int(fps) * i for i in range(int(frames // fps))]
+
+        label_list = []
+        face_list = []
+        tmp_image_hash_value_list = []
+        for i in range(int(frames)):
+            ret, frame = videoCapture.read()
+            if i not in get_frame_list:
+                continue
+            image_hash_value = imagehash.dhash(Image.fromarray(frame), hash_size=8)
+            if len(tmp_image_hash_value_list) == 0:  # 第一张
+                tmp_image_hash_value_list.append(image_hash_value)
+                img_str = cv2.imencode('.jpg', frame)[1].tostring()
+                label_list = label_list + oi_5000_model.get_tag_from_one(img_str)
+                continue
+            if min([image_hash_value - j for j in tmp_image_hash_value_list]) <= 9:  # 相似跳过
+                continue
+            img_str = cv2.imencode('.jpg', frame)[1].tostring()
+            label_list = label_list + oi_5000_model.get_tag_from_one(img_str)
+            tmp_image_hash_value_list.append(image_hash_value)
+        return list(set(label_list))
+
+    def parser_gif(self):
+        pass
 
     def main_func(self):
         start_time = time.time()
@@ -520,28 +624,38 @@ class GenerationWonderfulImageThread(threading.Thread):
 
                 if wonderful_type == 8:  # 过去现在
                     past_new_data = params.get('pastNowData')
-                    data_parser = []
-                    tmp = None
-                    for word in past_new_data:
-                        if "{" == word:
-                            tmp = word
-                        elif word == "}":
-                            tmp = tmp + word
-                            data_parser.append(tmp)
-                            tmp = None
-                        elif tmp:
-                            tmp = tmp + word
-                    img_data_0 = data_parser[0].split(',')
-                    img_data_1 = data_parser[1].split(',')
+                    img_data_0 = past_new_data[0]
+                    img_url_0 = img_data_0.get("imgUrl")
+                    img_time_0 = int(img_data_0.get("photoTime")) // 1000
+                    img_human_0 = img_data_0.get("tempHumanCoordinate")
+                    img_data_1 = past_new_data[1]
+                    img_url_1 = img_data_1.get("imgUrl")
+                    img_time_1 = int(img_data_1.get("photoTime")) // 1000
+                    img_human_1 = img_data_1.get("tempHumanCoordinate")
 
-                    img_url_0 = img_data_0[0][8:]
-                    img_time_0 = int(img_data_0[1][11:-1]) / 1000
+                    # data_parser = []
+                    # tmp = None
+                    # for word in past_new_data:
+                    #     if "{" == word:
+                    #         tmp = word
+                    #     elif word == "}":
+                    #         tmp = tmp + word
+                    #         data_parser.append(tmp)
+                    #         tmp = None
+                    #     elif tmp:
+                    #         tmp = tmp + word
+                    # img_data_0 = data_parser[0].split(',')
+                    # img_data_1 = data_parser[1].split(',')
 
-                    img_url_1 = img_data_1[0][8:]
-                    img_time_1 = int(img_data_1[1][11:-1]) / 1000
+                    # img_url_0 = img_data_0[0][8:]
+                    # img_time_0 = int(img_data_0[1][11:-1]) / 1000
+
+                    # img_url_1 = img_data_1[0][8:]
+                    # img_time_1 = int(img_data_1[1][11:-1]) / 1000
                     image_path_0 = self.download_image(img_url_0)
                     image_path_1 = self.download_image(img_url_1)
-                    image_tools.create_past_now_img([image_path_0, image_path_1], [img_time_0, img_time_1], output_path)
+                    image_tools.create_past_now_img(
+                        [image_path_0, image_path_1], [img_time_0, img_time_1], [img_human_0, img_human_1], output_path)
                     util.removefile(image_path_0)
                     util.removefile(image_path_1)
                 else:

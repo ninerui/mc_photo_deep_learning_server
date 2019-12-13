@@ -195,23 +195,30 @@ def read_img(img_path):
     return img
 
 
-def create_past_now_img(img_path_list, img_time_list, output_path):
+def create_past_now_img(img_path_list, img_time_list, human_list, output_path):
     image_list = [read_img(i) for i in img_path_list]
     image_direction_list = [(i.size[0] / i.size[1]) - 1. for i in image_list]
     if sum(image_direction_list) > 0:
         img_1 = image_list.pop(0)
         resize_h1 = int(img_1.size[1] * (690 / img_1.size[0]))
         img_1 = img_1.resize((690, resize_h1))
+        human_1 = human_list.pop(0)
 
         img_2 = image_list.pop(0)
         resize_h2 = int(img_2.size[1] * (690 / img_2.size[0]))
         img_2 = img_2.resize((690, resize_h2))
+        human_2 = human_list.pop(0)
 
         resize_h = min(resize_h1, resize_h2)
-        img_1 = img_1.crop((0, (resize_h1 - resize_h) // 2, 690, (resize_h1 - resize_h) // 2 + resize_h)).resize(
-            (690, resize_h)).convert('RGBA')
-        img_2 = img_2.crop((0, (resize_h2 - resize_h) // 2, 690, (resize_h2 - resize_h) // 2 + resize_h)).resize(
-            (690, resize_h)).convert('RGBA')
+        # human_h1 = (int(str(human_0)[2]) - int(str(human_0)[0]) / 10) * resize_h1
+        human_mid1 = ((int(str(human_1)[2]) - int(str(human_1)[0])) / 10) * resize_h1
+        human_ymin1 = max((human_mid1 - resize_h // 2), 0)
+        human_ymax1 = min((human_mid1 + resize_h // 2), resize_h1)
+        img_1 = img_1.crop((0, human_ymin1, 690, human_ymax1)).resize((690, resize_h)).convert('RGBA')
+        human_mid2 = ((int(str(human_2)[2]) - int(str(human_2)[0])) / 10) * resize_h2
+        human_ymin2 = max((human_mid2 - resize_h // 2), 0)
+        human_ymax2 = min((human_mid2 + resize_h // 2), resize_h2)
+        img_2 = img_2.crop((0, human_ymin2, 690, human_ymax2)).resize((690, resize_h)).convert('RGBA')
 
         txt_mask = Image.new('RGBA', img_1.size, (0, 0, 0, 0))
         g_a = (255 * 0.52) / int(txt_mask.size[1] * 0.45)
@@ -233,16 +240,22 @@ def create_past_now_img(img_path_list, img_time_list, output_path):
         img_1 = image_list.pop(0)
         resize_h1 = int(img_1.size[1] * (320 / img_1.size[0]))
         img_1 = img_1.resize((320, resize_h1))
+        human_1 = human_list.pop(0)
 
         img_2 = image_list.pop(0)
         resize_h2 = int(img_2.size[1] * (320 / img_2.size[0]))
         img_2 = img_2.resize((320, resize_h2))
+        human_2 = human_list.pop(0)
 
         resize_h = min(resize_h1, resize_h2)
-        img_1 = img_1.crop((0, (resize_h1 - resize_h) // 2, 320, (resize_h1 - resize_h) // 2 + resize_h)).resize(
-            (320, resize_h)).convert('RGBA')
-        img_2 = img_2.crop((0, (resize_h2 - resize_h) // 2, 320, (resize_h2 - resize_h) // 2 + resize_h)).resize(
-            (320, resize_h)).convert('RGBA')
+        human_mid1 = ((int(str(human_1)[2]) - int(str(human_1)[0])) / 10) * resize_h1
+        human_ymin1 = max((human_mid1 - resize_h // 2), 0)
+        human_ymax1 = min((human_mid1 + resize_h // 2), resize_h1)
+        img_1 = img_1.crop((0, human_ymin1, 320, human_ymax1)).resize((320, resize_h)).convert('RGBA')
+        human_mid2 = ((int(str(human_2)[2]) - int(str(human_2)[0])) / 10) * resize_h2
+        human_ymin2 = max((human_mid2 - resize_h // 2), 0)
+        human_ymax2 = min((human_mid2 + resize_h // 2), resize_h2)
+        img_2 = img_2.crop((0, human_ymin2, 320, human_ymax2)).resize((320, resize_h)).convert('RGBA')
 
         txt_mask = Image.new('RGBA', img_1.size, (0, 0, 0, 0))
         g_a = (255 * 0.52) / int(txt_mask.size[1] * 0.45)
