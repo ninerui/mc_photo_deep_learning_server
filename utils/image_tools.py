@@ -211,11 +211,17 @@ def create_past_now_img(img_path_list, img_time_list, human_list, output_path):
 
         resize_h = min(resize_h1, resize_h2)
         # human_h1 = (int(str(human_0)[2]) - int(str(human_0)[0]) / 10) * resize_h1
-        human_mid1 = ((int(str(human_1)[2]) - int(str(human_1)[0])) / 10) * resize_h1
+        try:
+            human_mid1 = ((int(str(human_1)[2]) - int(str(human_1)[0])) / 10) * resize_h1
+        except:
+            human_mid1 = resize_h1 // 2
         human_ymin1 = max((human_mid1 - resize_h // 2), 0)
         human_ymax1 = min((human_mid1 + resize_h // 2), resize_h1)
         img_1 = img_1.crop((0, human_ymin1, 690, human_ymax1)).resize((690, resize_h)).convert('RGBA')
-        human_mid2 = ((int(str(human_2)[2]) - int(str(human_2)[0])) / 10) * resize_h2
+        try:
+            human_mid2 = ((int(str(human_2)[2]) - int(str(human_2)[0])) / 10) * resize_h2
+        except:
+            human_mid2 = resize_h2 // 2
         human_ymin2 = max((human_mid2 - resize_h // 2), 0)
         human_ymax2 = min((human_mid2 + resize_h // 2), resize_h2)
         img_2 = img_2.crop((0, human_ymin2, 690, human_ymax2)).resize((690, resize_h)).convert('RGBA')
@@ -248,11 +254,17 @@ def create_past_now_img(img_path_list, img_time_list, human_list, output_path):
         human_2 = human_list.pop(0)
 
         resize_h = min(resize_h1, resize_h2)
-        human_mid1 = ((int(str(human_1)[2]) - int(str(human_1)[0])) / 10) * resize_h1
+        try:
+            human_mid1 = ((int(str(human_1)[2]) - int(str(human_1)[0])) / 10) * resize_h1
+        except:
+            human_mid1 = resize_h1 // 2
         human_ymin1 = max((human_mid1 - resize_h // 2), 0)
         human_ymax1 = min((human_mid1 + resize_h // 2), resize_h1)
         img_1 = img_1.crop((0, human_ymin1, 320, human_ymax1)).resize((320, resize_h)).convert('RGBA')
-        human_mid2 = ((int(str(human_2)[2]) - int(str(human_2)[0])) / 10) * resize_h2
+        try:
+            human_mid2 = ((int(str(human_2)[2]) - int(str(human_2)[0])) / 10) * resize_h2
+        except:
+            human_mid2 = resize_h2 // 2
         human_ymin2 = max((human_mid2 - resize_h // 2), 0)
         human_ymax2 = min((human_mid2 + resize_h // 2), resize_h2)
         img_2 = img_2.crop((0, human_ymin2, 320, human_ymax2)).resize((320, resize_h)).convert('RGBA')
