@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+import os
+
 import tensorflow as tf
 
 from utils import tf_tools
@@ -11,9 +16,14 @@ class ImageMakingWithOpenImage(object):
         self.oi_5000_prob = oi_5000_graph.get_tensor_by_name('multi_predictions:0')
 
     def get_tag_from_one(self, img_path, threshold=0.8, debug=False):
-        predictions_eval = self.oi_5000_sess.run(
-            self.oi_5000_prob,
-            feed_dict={self.oi_5000_input: [tf.gfile.FastGFile(img_path, 'rb').read()]})
+        if os.path.isfile(img_path):
+            predictions_eval = self.oi_5000_sess.run(
+                self.oi_5000_prob,
+                feed_dict={self.oi_5000_input: [tf.gfile.FastGFile(img_path, 'rb').read()]})
+        else:
+            predictions_eval = self.oi_5000_sess.run(
+                self.oi_5000_prob,
+                feed_dict={self.oi_5000_input: [img_path]})
         top_k = predictions_eval.argsort()[::-1]
         tag = []
         for i in top_k:
