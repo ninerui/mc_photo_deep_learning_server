@@ -15,8 +15,7 @@ class IDCardDetection:
         detection_graph = tf_tools.load_pb_model(model_path)
         self.sess = tf.Session(graph=detection_graph)
         self.image_tensor = detection_graph.get_tensor_by_name('image_tensor:0')
-
-        # self.detection_boxes = detection_graph.get_tensor_by_name('detection_boxes:0')
+        self.detection_boxes = detection_graph.get_tensor_by_name('detection_boxes:0')
         self.detection_scores = detection_graph.get_tensor_by_name('detection_scores:0')
         # self.detection_classes = detection_graph.get_tensor_by_name('detection_classes:0')
         # self.num_detections = detection_graph.get_tensor_by_name('num_detections:0')
@@ -26,8 +25,10 @@ class IDCardDetection:
         # (boxes, scores, classes, num) = self.sess.run(
         #     [self.detection_boxes, self.detection_scores, self.detection_classes, self.num_detections],
         #     feed_dict={self.image_tensor: image_expanded})
-        scores = self.sess.run(self.detection_scores, feed_dict={self.image_tensor: image_expanded})
+        scores, boxes = self.sess.run(
+            [self.detection_scores, self.detection_boxes], feed_dict={self.image_tensor: image_expanded})
         if np.max(scores) >= 0.8:
-            return True
+            return boxes[0][0]
+            # return True
         else:
             return False
