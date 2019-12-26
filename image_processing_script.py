@@ -1,10 +1,7 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
 import os
-import re
 import time
 import uuid
 import json
@@ -512,7 +509,11 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         tmp_time = time.time()
         have_id_card = have_idcard_model.detect_id_card(image)
         if have_id_card:
-            is_card = is_idcard_model.get_res_from_one(image)
+            top, left, bottom, right = have_id_card
+            img_h, img_w, _ = image.shape
+            top, left, bottom, right = int(top * img_h), int(left * img_w), int(bottom * img_h), int(right * img_w)
+            img_crop = image[top:bottom, left:right, :]
+            is_card = is_idcard_model.get_res_from_one(img_crop)
         else:
             is_card = []
         time_ic = time.time() - tmp_time
@@ -624,38 +625,14 @@ class GenerationWonderfulImageThread(threading.Thread):
 
                 if wonderful_type == 8:  # 过去现在
                     past_new_data = json.loads(params.get('pastNowData'))
-                    # data_parser = []
-                    # tmp = None
-                    # for word in past_new_data:
-                    #     if "{" == word:
-                    #         tmp = word
-                    #     elif word == "}":
-                    #         tmp = tmp + word
-                    #         data_parser.append(tmp)
-                    #         tmp = None
-                    #     elif tmp:
-                    #         tmp = tmp + word
-                    # img_data_0 = data_parser[0].split(',')
-                    # img_data_1 = data_parser[1].split(',')
-
                     img_data_0 = past_new_data[0]
-                    # img_data_0 = json.loads(data_parser[0])
                     img_url_0 = img_data_0.get("imgUrl")
                     img_time_0 = int(img_data_0.get("photoTime")) // 1000
                     img_human_0 = img_data_0.get("tempHumanCoordinate")
                     img_data_1 = past_new_data[1]
-                    # img_data_1 = json.loads(data_parser[1])
                     img_url_1 = img_data_1.get("imgUrl")
                     img_time_1 = int(img_data_1.get("photoTime")) // 1000
                     img_human_1 = img_data_1.get("tempHumanCoordinate")
-
-
-
-                    # img_url_0 = img_data_0[0][8:]
-                    # img_time_0 = int(img_data_0[1][11:-1]) / 1000
-
-                    # img_url_1 = img_data_1[0][8:]
-                    # img_time_1 = int(img_data_1[1][11:-1]) / 1000
                     image_path_0 = self.download_image(img_url_0)
                     image_path_1 = self.download_image(img_url_1)
                     image_tools.create_past_now_img(
@@ -738,7 +715,7 @@ if __name__ == '__main__':
         fd_ssd_detection = face_detection_interface.FaceDetectionWithSSDMobilenet()
         fd_mtcnn_detection = face_detection_interface.FaceDetectionWithMtcnnTF(steps_threshold=[0.6, 0.7, 0.8])
         is_idcard_model = zhouwen_image_card_classify_interface.IDCardClassify(
-            model_path='./models/zhouwen_models/id_card_classifly_v1.2.pb'
+            # model_path='./models/zhouwen_models/id_card_classifly_v1.2.pb'
         )
         object_detection_model = object_detection_interface.ObjectDetectionWithSSDMobilenetV2()
         have_idcard_model = IDCardDetection()
