@@ -50,7 +50,7 @@ def cluster_face_func(face_data, user_id, face_id_label_dict):
             else:
                 tmp_group_res = group_id_set & current_index_set
                 if len(tmp_group_res) != 0:
-                    group_id = list(tmp_group_res)[0]
+                    group_id = int(list(tmp_group_res)[0])
                 else:
                     group_id = int(min(current_index_set))
                 face_tmp = []
