@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
 import numpy as np
 import tensorflow as tf
@@ -29,6 +27,5 @@ class IDCardDetection:
             [self.detection_scores, self.detection_boxes], feed_dict={self.image_tensor: image_expanded})
         if np.max(scores) >= 0.8:
             return boxes[0][0].tolist()
-            # return True
         else:
             return False

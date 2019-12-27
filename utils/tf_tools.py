@@ -9,9 +9,8 @@ def load_pb_model(model_path):
     """
     model_graph = tf.Graph()
     with model_graph.as_default():
-        od_graph_def = tf.GraphDef()
-        with tf.gfile.GFile(model_path, 'rb') as fid:
-            serialized_graph = fid.read()
-            od_graph_def.ParseFromString(serialized_graph)
+        od_graph_def = tf.compat.v1.GraphDef()
+        with tf.io.gfile.GFile(model_path, 'rb') as fid:
+            od_graph_def.ParseFromString(fid.read())
             tf.import_graph_def(od_graph_def, name='')
     return model_graph

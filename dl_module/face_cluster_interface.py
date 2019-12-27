@@ -16,7 +16,10 @@ def cluster_face_func(face_data, user_id, face_id_label_dict):
         nrof_images = len(features)
         db = DBSCAN(eps=0.44, min_samples=5, metric=custom_metric)
         db.fit(features)
+        # db.fit_predict()
         labels = db.labels_
+
+        group_id_set = set(j for i, j in face_id_label_dict.items())
         not_find_index_set = set()
         for index in range(nrof_images):
             if {index} & not_find_index_set:
@@ -45,7 +48,11 @@ def cluster_face_func(face_data, user_id, face_id_label_dict):
                         'faceImgUrl': "face_cluster_data/{}/face_images/{}.jpg".format(user_id, face_data[0]['face_id'])
                     })
             else:
-                group_id = int(min(current_index_set))
+                tmp_group_res = group_id_set & current_index_set
+                if len(tmp_group_res) != 0:
+                    group_id = list(tmp_group_res)[0]
+                else:
+                    group_id = int(min(current_index_set))
                 face_tmp = []
                 img_set = set()
                 for img_index in current_index_set:

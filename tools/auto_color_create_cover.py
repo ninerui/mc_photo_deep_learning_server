@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import os
 import sys
 import math
 import traceback
@@ -11,8 +12,8 @@ import numpy as np
 from PIL import Image
 
 # P_A: 所有像素，B_B: 外边界， B_S: 内边界
-P_A = 1035
-B_B = 30
+P_A = 1280
+B_B = 20
 B_S = 15
 P_2_1 = (P_A - (B_B * 2) - B_S) // 2
 P_2_2 = P_2_1 * 2 + B_S
@@ -57,7 +58,6 @@ def read_img(img_path):
 
 
 def create_cover_from_2_img(image_list, face_list):
-    # image_list = [read_img(i) for i in img_path_list]
     image_direction_list = [(i.size[0] / i.size[1]) - 1. for i in image_list]
     res_img = Image.new(mode='RGB', size=(P_A, P_A), color='white')
     if sum(image_direction_list) > 0:  # 上下结构
@@ -277,13 +277,14 @@ def create_cover_from_9_img(image_list, face_list):
 
 if __name__ == '__main__':
     try:
+        dirname, filename = os.path.split(os.path.abspath(sys.argv[0]))
         args = sys.argv[1:]
         output_path = args.pop(-1)
         img_path_list = args
         img_count = len(img_path_list)
         assert 2 <= img_count <= 9
         face_cascade = cv2.CascadeClassifier()
-        face_cascade.load('./haarcascade_frontalface_default.xml')
+        face_cascade.load(os.path.join(dirname, 'haarcascade_frontalface_default.xml'))
 
         image_list = [read_img(i) for i in img_path_list]
 
@@ -292,9 +293,9 @@ if __name__ == '__main__':
             img_w, img_h = image.size
             image_rgb = np.array(image)
             image_gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
-            image_scale = min(math.sqrt(16000000 / (img_w * img_h)), 1.)
+            image_scale = min(math.sqrt(3000000 / (img_w * img_h)), 1.)
             image_gray = cv2.resize(image_gray, (0, 0), fx=image_scale, fy=image_scale)
-            img_w, img_h = image.shape
+            img_h, img_w = image_gray.shape
             faces = face_cascade.detectMultiScale(image_gray)
             if len(faces) == 0:
                 face_list.append(tuple())
@@ -322,5 +323,5 @@ if __name__ == '__main__':
         res_img.save(output_path, "JPEG", quality=100)
         sys.stdout.write('111: {}'.format(output_path))
     except Exception as e:
-        sys.stdout.write('000')
-        traceback.print_exc()
+        sys.stdout.write('000\n')
+        sys.stdout.write(traceback.format_exc())
