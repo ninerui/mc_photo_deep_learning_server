@@ -262,6 +262,20 @@ def get_redis_next_data(rds_name):
     return None
 
 
+def get_is_black_and_white(img):
+    """
+    获取图片是否符合黑白的特征
+    :param img: 输入的图像
+    :return: bool值
+    """
+    b, g, r = cv2.split(img)
+    all_pixel = b.size
+    if (np.count_nonzero(b == g) / all_pixel > 0.99) and (
+            np.count_nonzero(b == r) / all_pixel > 0.99) and (np.count_nonzero(r == g) / all_pixel > 0.99):
+        return 1
+    return 0
+
+
 class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
     def __init__(self, thread_name):
         threading.Thread.__init__(self)
@@ -525,8 +539,10 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         # logging.info("face_count: {}, human_coordinate:{}".format(face_count,location))
         time_od = time.time() - tmp_time
 
-        b, g, r = cv2.split(image)
-        is_black_and_white = 1 if ((b == g).all() and (b == r).all()) else 0
+        is_black_and_white = get_is_black_and_white(image)
+        # b, g, r = cv2.split(image)
+        # is_black_and_white = 1 if ((b == g).all() and (b == r).all()) else 0
+
         quality_image = np.asarray(tf.keras.preprocessing.image.load_img(image_path, target_size=(224, 224)))
         data_json = {
             'mediaId': media_id,
