@@ -519,27 +519,31 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         time_making = time.time() - tmp_time
         # 读取图片
         image = cv2.imread(image_path)
-        # 图片证件识别
-        tmp_time = time.time()
-        have_id_card = have_idcard_model.detect_id_card(image)
-        if have_id_card:
-            top, left, bottom, right = have_id_card
-            img_h, img_w, _ = image.shape
-            top, left, bottom, right = int(top * img_h), int(left * img_w), int(bottom * img_h), int(right * img_w)
-            img_crop = image[top:bottom, left:right, :]
-            is_card = is_idcard_model.get_res_from_one(img_crop)
-        else:
-            is_card = []
-        time_ic = time.time() - tmp_time
-        tmp_time = time.time()
-        face_count = self.parser_face(user_id, media_id, image)
-        time_face = time.time() - tmp_time
-        tmp_time = time.time()
-        is_local_color, location = self.get_is_local_color(image, face_count)
-        # logging.info("face_count: {}, human_coordinate:{}".format(face_count,location))
-        time_od = time.time() - tmp_time
+        img_h, img_w, _ = image.shape
 
-        is_black_and_white = get_is_black_and_white(image)
+        # 图片证件识别
+        time_ic, time_face, time_od, is_black_and_white, is_local_color, face_count = 0, 0, 0, 0, 0, 0
+        is_card = []
+        location = ""
+        if max(img_h, img_w) / min(img_h, img_w) < 20:  # 判断长图, 比率超过33会报错
+            tmp_time = time.time()
+            have_id_card = have_idcard_model.detect_id_card(image)
+            if have_id_card:
+                top, left, bottom, right = have_id_card
+                top, left, bottom, right = int(top * img_h), int(left * img_w), int(bottom * img_h), int(right * img_w)
+                img_crop = image[top:bottom, left:right, :]
+                is_card = is_idcard_model.get_res_from_one(img_crop)
+            time_ic = time.time() - tmp_time
+            # 人脸处理
+            tmp_time = time.time()
+            face_count = self.parser_face(user_id, media_id, image)
+            time_face = time.time() - tmp_time
+            tmp_time = time.time()
+            is_local_color, location = self.get_is_local_color(image, face_count)
+            # logging.info("face_count: {}, human_coordinate:{}".format(face_count,location))
+            time_od = time.time() - tmp_time
+
+            is_black_and_white = get_is_black_and_white(image)
         # b, g, r = cv2.split(image)
         # is_black_and_white = 1 if ((b == g).all() and (b == r).all()) else 0
 
