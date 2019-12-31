@@ -27,19 +27,23 @@ def resize_image(image, size=(511, 511), face=tuple()):
     scale_h = size[1] / image.size[1]
     if scale_w > scale_h:  # 裁上下
         image = image.resize((size[0], int(scale_w * image.size[1])), Image.ANTIALIAS)
+        new_w, new_h = image.size
         if len(face) == 0:
-            start_pix = (image.size[1] - size[1]) // 2
+            start_pix = (new_h - size[1]) // 2
         else:
-            start_pix = max(face[1] - 0.1, 0) * image.size[1]
+            start_pix = max(face[1] - 0.1, 0) * new_h
+            if (start_pix + size[1]) > new_h:
+                start_pix = new_h - size[1]
         image = image.crop((0, start_pix, size[0], size[1] + start_pix))
     else:  # 裁左右
         image = image.resize((int(scale_h * image.size[0]), size[1]), Image.ANTIALIAS)
+        new_w, new_h = image.size
         if len(face) == 0:
-            start_pix = (image.size[0] - size[0]) // 2
+            start_pix = (new_w - size[0]) // 2
         else:
-            start_pix = max(face[0] - 0.1, 0) * image.size[0]
-            if start_pix + size[0] > image.size[0]:
-                start_pix = image.size[0] - size[0]
+            start_pix = max(face[0] - 0.1, 0) * new_w
+            if start_pix + size[0] > new_w:
+                start_pix = new_w - size[0]
         image = image.crop((start_pix, 0, size[0] + start_pix, size[1]))
     return image
 
