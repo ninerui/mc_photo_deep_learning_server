@@ -288,7 +288,7 @@ if __name__ == '__main__':
         img_count = len(img_path_list)
         assert 2 <= img_count <= 9
         face_cascade = cv2.CascadeClassifier()
-        face_cascade.load(os.path.join(dirname, 'haarcascade_frontalface_default.xml'))
+        face_cascade.load(os.path.join(dirname, 'haarcascade_frontalface_alt.xml'))
 
         image_list = [read_img(i) for i in img_path_list]
 

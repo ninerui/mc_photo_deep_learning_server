@@ -525,7 +525,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         time_ic, time_face, time_od, is_black_and_white, is_local_color, face_count = 0, 0, 0, 0, 0, 0
         is_card = []
         location = ""
-        if max(img_h, img_w) / min(img_h, img_w) < 20:  # 判断长图, 比率超过33会报错
+        if max(img_h, img_w) / min(img_h, img_w) < 9:  # 判断长图, 比率超过33会报错
             tmp_time = time.time()
             have_id_card = have_idcard_model.detect_id_card(image)
             if have_id_card:
