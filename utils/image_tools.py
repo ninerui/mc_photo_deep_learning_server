@@ -127,7 +127,7 @@ def parser_image(image_path, output_dir):
                 else:
                     res_code = -2
         elif image_type.lower() in ['.jpeg', '.png', '.bmp', '.jpg']:
-            res_code = 1
+            res_code = -8
         else:
             res_code = -6
     return res_code, image_path, image_get_type
@@ -140,7 +140,8 @@ PARSER_IMAGE_CODE = {
     -4: "webp convert fail",
     -5: "gif get image fail",
     -6: "unknown image type",
-    -7: "function error"
+    -7: "function error",
+    -8: "imghdr check None, but is .jpg",
 }
 
 
