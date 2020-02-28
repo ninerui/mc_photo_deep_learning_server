@@ -507,6 +507,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         params_data = get_redis_next_data(conf.redis_image_making_list_name)
         if params_data is None:
             return
+        logging.info("image data: {}".format(params_data))
         image_path = params_data.get('image_path')
         media_id = params_data.get('media_id')
         user_id = params_data.get('user_id')
@@ -540,12 +541,9 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             time_face = time.time() - tmp_time
             tmp_time = time.time()
             is_local_color, location = self.get_is_local_color(image, face_count)
-            # logging.info("face_count: {}, human_coordinate:{}".format(face_count,location))
             time_od = time.time() - tmp_time
 
             is_black_and_white = get_is_black_and_white(image)
-        # b, g, r = cv2.split(image)
-        # is_black_and_white = 1 if ((b == g).all() and (b == r).all()) else 0
 
         quality_image = np.asarray(tf.keras.preprocessing.image.load_img(image_path, target_size=(224, 224)))
         data_json = {
