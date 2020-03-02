@@ -108,6 +108,8 @@ def parser_image(image_path, output_dir):
         subprocess.run(['dwebp', image_path, '-o', new_img_path])
         if os.path.isfile(new_img_path):
             res_code = 1
+            if image_path != new_img_path:
+                os.remove(image_path)
             # os.remove(image_path)
             image_path = new_img_path
         else:
@@ -122,8 +124,8 @@ def parser_image(image_path, output_dir):
             finally:
                 if os.path.isfile(new_img_path):
                     res_code = 1
-                    if image_path != new_img_path:
-                        os.remove(image_path)
+                    # if image_path != new_img_path:
+                    #     os.remove(image_path)
                     image_path = new_img_path
                 else:
                     res_code = -2
