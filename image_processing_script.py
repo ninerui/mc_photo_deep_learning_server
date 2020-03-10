@@ -230,6 +230,9 @@ def get_redis_next_data(rds_name):
         elif download_code == 1:  # 下载以及解析成功
             params['image_path'] = image_path
             return params
+        elif download_code == 2:  # 下载以及解析成功, 图片格式为mp4
+            params['image_path'] = image_path
+            return params
         else:  # 图片处理失败
             oss_key = "error_image/{}".format(os.path.basename(image_path))
             redis_connect.lpush(
@@ -575,7 +578,7 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         util.removefile(image_path)
 
         redis_connect.srem(conf.redis_image_making_set_name, media_id)
-        logging.info("{} total time: {}, dl time: {}, making time: {}, ic time: {}, face time: {}, od_time: {}".format(
+        logging.info("{} total: {:.4f}, dl: {:.4f}, making: {:.4f}, ic: {:.4f}, face: {:.4f}, od: {:.4f}".format(
             os.path.basename(image_url), time.time() - start_time, time_dl, time_making, time_ic, time_face, time_od))
 
     def run(self):  # 把要执行的代码写到run函数里面 线程在创建后会直接运行run函数
