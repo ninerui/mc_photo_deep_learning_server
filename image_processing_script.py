@@ -230,9 +230,13 @@ def get_redis_next_data(rds_name):
         elif download_code == 1:  # 下载以及解析成功
             params['image_path'] = image_path
             return params
-        elif download_code == 2:  # 下载以及解析成功, 图片格式为mp4
-            params['image_path'] = image_path
-            return params
+        elif download_code == 3:
+            logging.error("图片占用内存为0, params data: {}".format(params))
+            redis_connect.srem(conf.redis_image_making_set_name, params.get('media_id'))
+            return None
+        # elif download_code == 2:  # 下载以及解析成功, 图片格式为mp4
+        #     params['image_path'] = image_path
+        #     return params
         else:  # 图片处理失败
             oss_key = "error_image/{}".format(os.path.basename(image_path))
             redis_connect.lpush(

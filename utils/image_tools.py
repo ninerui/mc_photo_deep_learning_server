@@ -81,6 +81,10 @@ def heic2jpg(src_file, result_file):
 
 
 def parser_image(image_path, output_dir):
+    if os.path.getsize(image_path) == 0:  # 首先获取文件大小, if size == 0b, 返回代码3
+        res_code = 3
+        os.remove(image_path)
+        return res_code, image_path, None
     image_get_type = imghdr.what(image_path)
     image_id, image_type = os.path.splitext(os.path.basename(image_path))
     if image_get_type in ['jpeg', 'png', 'bmp']:
@@ -132,6 +136,8 @@ def parser_image(image_path, output_dir):
                     res_code = -2
         elif image_type.lower() in ['.jpeg', '.png', '.bmp', '.jpg']:
             res_code = -8
+        # elif image_type.lower() in ['.mp4']:
+        #     res_code = 2
         else:
             res_code = -6
     return res_code, image_path, image_get_type
@@ -146,6 +152,7 @@ PARSER_IMAGE_CODE = {
     -6: "unknown image type",
     -7: "function error",
     -8: "imghdr check None, but is .jpg",
+    3: "image is zero size"
 }
 
 
