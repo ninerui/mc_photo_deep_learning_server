@@ -277,8 +277,8 @@ def get_is_black_and_white(img):
     """
     b, g, r = cv2.split(img)
     all_pixel = b.size
-    if (np.count_nonzero(b == g) / all_pixel > 0.99) and (
-            np.count_nonzero(b == r) / all_pixel > 0.99) and (np.count_nonzero(r == g) / all_pixel > 0.99):
+    if (np.count_nonzero(b == g) / all_pixel > 0.99) and (np.count_nonzero(b == r) / all_pixel > 0.99) and (
+            np.count_nonzero(r == g) / all_pixel > 0.99) and len(set(img.flatten())) >= 80:
         return 1
     return 0
 
