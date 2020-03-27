@@ -5,6 +5,7 @@ import os
 import time
 import uuid
 import json
+import shutil
 import pickle
 import logging
 import threading
@@ -580,6 +581,8 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
                 "oss_key": oss_key
             }))
         util.removefile(image_path)
+        if os.path.exists(os.path.dirname(image_path)):
+            shutil.rmtree(os.path.dirname(image_path))
 
         redis_connect.srem(conf.redis_image_making_set_name, media_id)
         logging.info("{} total: {:.4f}, dl: {:.4f}, making: {:.4f}, ic: {:.4f}, face: {:.4f}, od: {:.4f}".format(

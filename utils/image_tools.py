@@ -4,6 +4,7 @@ from __future__ import division
 from __future__ import print_function
 
 import os
+import shutil
 import glob
 import imghdr
 import logging
@@ -85,62 +86,107 @@ def parser_image(image_path, output_dir):
         res_code = 3
         os.remove(image_path)
         return res_code, image_path, None
-    image_get_type = imghdr.what(image_path)
+    import magic
+    file_type = magic.from_file(image_path)  # 'image/heif', 'image/png', 'image/jpeg', 'image/gif'
+    b_class, s_class = file_type.split('/')
     image_id, image_type = os.path.splitext(os.path.basename(image_path))
-    if image_get_type in ['jpeg', 'png', 'bmp']:
-        try:
-            Image.open(image_path).load()
-            res_code = 1
-        except OSError:
+    new_dir = os.path.join(output_dir, image_id)
+    if not os.path.exists(new_dir): os.makedirs(new_dir)
+    new_img_path = os.path.join(new_dir, "{}.jpg".format(image_id))
+    if b_class == 'image':
+        if s_class == 'webp':
+            new_img_path = os.path.join(output_dir, image_id, "{}.jpg".format(image_id))
             try:
-                cv2.imwrite(image_path, cv2.imread(image_path))
-                res_code = 1
-            except cv2.error:
-                res_code = -3
-    elif image_get_type == 'gif':
-        try:
-            new_image_path = os.path.join(output_dir, '{}.png'.format(image_id))
-            ImageSequence.Iterator(Image.open(image_path))[0].save(new_image_path)
-            res_code = 1
-            os.remove(image_path)
-            image_path = new_image_path
-        except Exception as e:
-            logging.exception(e)
-            res_code = -5
-    elif image_get_type == 'webp':
-        new_img_path = os.path.join(output_dir, "{}.jpg".format(image_id))
-        subprocess.run(['dwebp', image_path, '-o', new_img_path])
-        if os.path.isfile(new_img_path):
-            res_code = 1
-            if image_path != new_img_path:
-                os.remove(image_path)
-            # os.remove(image_path)
-            image_path = new_img_path
-        else:
-            res_code = -4
-    else:
-        if image_type.lower() == '.heic':
-            new_img_path = os.path.join(output_dir, "{}.jpg".format(image_id))
+                subprocess.run(['dwebp', image_path, '-o', new_img_path])
+            except Exception as e:
+                logging.exception(e)
+            finally:
+                res_code = 1 if os.path.exists(new_img_path) else -4
+        elif s_class == 'heif':
             try:
                 heic2jpg(image_path, new_img_path)
             except Exception as e:
                 logging.exception(e)
             finally:
-                if os.path.isfile(new_img_path):
-                    res_code = 1
-                    os.remove(image_path)
-                    # if image_path != new_img_path:
-                    #     os.remove(image_path)
-                    image_path = new_img_path
-                else:
-                    res_code = -2
-        elif image_type.lower() in ['.jpeg', '.png', '.bmp', '.jpg']:
-            res_code = -8
-        # elif image_type.lower() in ['.mp4']:
-        #     res_code = 2
+                res_code = 1 if os.path.exists(new_img_path) else -2
+        elif s_class in ['jpeg', 'png', 'bmp']:
+            try:
+                Image.open(image_path).load()
+                shutil.copyfile(image_path, new_img_path)
+            except Exception as e:
+                logging.exception(e)
+            finally:
+                res_code = 1 if os.path.exists(new_img_path) else -3
+        elif s_class == 'gif':
+            try:
+                ImageSequence.Iterator(Image.open(image_path))[0].save(new_img_path)
+            except Exception as e:
+                logging.exception(e)
+            finally:
+                res_code = 1 if os.path.exists(new_img_path) else -5
         else:
-            res_code = -6
-    return res_code, image_path, image_get_type
+            res_code = -9
+    else:
+        res_code = -8
+    if os.path.exists(image_path):
+        os.remove(image_path)
+
+    # image_get_type = imghdr.what(image_path)
+    # image_id, image_type = os.path.splitext(os.path.basename(image_path))
+    # if image_get_type in ['jpeg', 'png', 'bmp']:
+    #     try:
+    #         Image.open(image_path).load()
+    #         res_code = 1
+    #     except OSError:
+    #         try:
+    #             cv2.imwrite(image_path, cv2.imread(image_path))
+    #             res_code = 1
+    #         except cv2.error:
+    #             res_code = -3
+    # elif image_get_type == 'gif':
+    #     try:
+    #         new_image_path = os.path.join(output_dir, '{}.png'.format(image_id))
+    #         ImageSequence.Iterator(Image.open(image_path))[0].save(new_image_path)
+    #         res_code = 1
+    #         os.remove(image_path)
+    #         image_path = new_image_path
+    #     except Exception as e:
+    #         logging.exception(e)
+    #         res_code = -5
+    # elif image_get_type == 'webp':
+    #     new_img_path = os.path.join(output_dir, "{}.jpg".format(image_id))
+    #     subprocess.run(['dwebp', image_path, '-o', new_img_path])
+    #     if os.path.isfile(new_img_path):
+    #         res_code = 1
+    #         if image_path != new_img_path:
+    #             os.remove(image_path)
+    #         # os.remove(image_path)
+    #         image_path = new_img_path
+    #     else:
+    #         res_code = -4
+    # else:
+    # if image_type.lower() == '.heic':
+    #     new_img_path = os.path.join(output_dir, "{}.jpg".format(image_id))
+    #     try:
+    #         heic2jpg(image_path, new_img_path)
+    #     except Exception as e:
+    #         logging.exception(e)
+    #     finally:
+    #         if os.path.isfile(new_img_path):
+    #             res_code = 1
+    #             os.remove(image_path)
+    #             # if image_path != new_img_path:
+    #             #     os.remove(image_path)
+    #             image_path = new_img_path
+    #         else:
+    #             res_code = -2
+    # elif image_type.lower() in ['.jpeg', '.png', '.bmp', '.jpg']:
+    #     res_code = -8
+    # # elif image_type.lower() in ['.mp4']:
+    # #     res_code = 2
+    # else:
+    #     res_code = -6
+    return res_code, new_img_path, file_type
 
 
 PARSER_IMAGE_CODE = {
