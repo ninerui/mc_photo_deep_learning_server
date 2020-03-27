@@ -87,7 +87,7 @@ def parser_image(image_path, output_dir):
         os.remove(image_path)
         return res_code, image_path, None
     import magic
-    file_type = magic.from_file(image_path)  # 'image/heif', 'image/png', 'image/jpeg', 'image/gif'
+    file_type = magic.from_file(image_path, mime=True)  # 'image/heif', 'image/png', 'image/jpeg', 'image/gif'
     b_class, s_class = file_type.split('/')
     image_id, image_type = os.path.splitext(os.path.basename(image_path))
     new_dir = os.path.join(output_dir, image_id)
