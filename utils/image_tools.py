@@ -117,18 +117,18 @@ def parser_image(image_path, output_dir):
                 logging.exception(e)
             finally:
                 res_code = 1 if os.path.exists(new_img_path) else -3
-        elif s_class == 'gif':
-            try:
-                ImageSequence.Iterator(Image.open(image_path))[0].save(new_img_path)
-            except Exception as e:
-                logging.exception(e)
-            finally:
-                res_code = 1 if os.path.exists(new_img_path) else -5
+        # elif s_class == 'gif':
+        #     try:
+        #         ImageSequence.Iterator(Image.open(image_path))[0].save(new_img_path)
+        #     except Exception as e:
+        #         logging.exception(e)
+        #     finally:
+        #         res_code = 1 if os.path.exists(new_img_path) else -5
         else:
             res_code = -9
     else:
         res_code = -8
-    if os.path.exists(image_path):
+    if os.path.exists(image_path) and res_code == 1:
         os.remove(image_path)
 
     # image_get_type = imghdr.what(image_path)
