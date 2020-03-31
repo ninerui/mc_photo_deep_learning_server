@@ -6,7 +6,7 @@ from __future__ import print_function
 import os
 import shutil
 import glob
-import imghdr
+# import imghdr
 import logging
 import datetime
 import subprocess
@@ -102,7 +102,7 @@ def parser_image(image_path, output_dir):
                 logging.exception(e)
             finally:
                 res_code = 1 if os.path.exists(new_img_path) else -4
-        elif s_class == 'heif':
+        elif s_class in ['heic', 'heif']:
             try:
                 heic2jpg(image_path, new_img_path)
             except Exception as e:
