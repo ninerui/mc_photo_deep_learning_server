@@ -113,6 +113,8 @@ def parser_image(image_path, output_dir):
             try:
                 Image.open(image_path).load()
                 shutil.copyfile(image_path, new_img_path)
+            except OSError:
+                cv2.imwrite(new_img_path, cv2.imread(image_path))
             except Exception as e:
                 logging.exception(e)
             finally:
