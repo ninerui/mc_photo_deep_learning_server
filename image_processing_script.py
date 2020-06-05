@@ -531,6 +531,9 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
         receiving_data_type = params_data.get('data_type')
         if int(receiving_data_type) == 21:  # 有看模块, 进行相似和质量, image_url为oss key
             quality_value, similarity_value = aesthetic_model.get_baseline_and_res(image_path)
+            # phash计算图片相似
+            similarity_value = imagehash.phash(Image.open(image_path), hash_size=8, highfreq_factor=4)
+            similarity_value = ''.join(str(b) for b in 1 * similarity_value.hash.flatten())  # 转成'10101010100'格式
             call_results_status = call_url_func(params_data.get('callback_url'), data_json={
                 "fileId": params_data.get("fileId"),
                 "md5": params_data.get("md5"),
