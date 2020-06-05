@@ -46,7 +46,7 @@ class AestheticQualityModelWithTF:
         self.sess.graph.as_default()
         tf.import_graph_def(graph_def, name='')
         self.input = self.sess.graph.get_tensor_by_name('input_1:0')
-        self.softmax_tensor = self.sess.graph.get_tensor_by_name('dense_1/Softmax:0')
+        self.softmax_tensor = self.sess.graph.get_tensor_by_name('dense/Softmax:0')
         self.baseline_res = self.sess.graph.get_tensor_by_name('global_average_pooling2d/Mean:0')
 
     def get_res(self, img):
@@ -78,3 +78,14 @@ class TechnicalQualityModelWithTF:
     def get_res(self, img):
         res = self.sess.run(self.softmax_tensor, {self.input: preprocess_input(np.expand_dims(img, axis=0))})
         return calc_mean_score(res)
+
+
+def test_model_class():
+    AestheticQualityModelWithTF()
+
+    TechnicalQualityModelWithTF()
+
+
+if __name__ == '__main__':
+    print("Test...")
+    test_model_class()
