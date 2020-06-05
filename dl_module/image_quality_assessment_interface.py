@@ -2,6 +2,7 @@ import numpy as np
 from tensorflow import keras
 import tensorflow as tf
 from tensorflow.python.platform import gfile
+from sklearn.preprocessing import normalize
 
 preprocess_input = keras.applications.mobilenet.preprocess_input
 
@@ -32,6 +33,10 @@ class QualityAssessmentModel:
         return calc_mean_score(res)
 
 
+def load_image(img_file, target_size):
+    return np.asarray(tf.keras.preprocessing.image.load_img(img_file, target_size=target_size))
+
+
 class AestheticQualityModelWithTF:
     def __init__(self, model_path='./models/mobilenet_aesthetic_0.07.pb'):
         self.sess = tf.Session()
@@ -42,10 +47,21 @@ class AestheticQualityModelWithTF:
         tf.import_graph_def(graph_def, name='')
         self.input = self.sess.graph.get_tensor_by_name('input_1:0')
         self.softmax_tensor = self.sess.graph.get_tensor_by_name('dense_1/Softmax:0')
+        self.baseline_res = self.sess.graph.get_tensor_by_name('global_average_pooling2d/Mean:0')
 
     def get_res(self, img):
         res = self.sess.run(self.softmax_tensor, {self.input: preprocess_input(np.expand_dims(img, axis=0))})
         return calc_mean_score(res)
+
+    def get_baseline_and_res(self, img):
+        image = load_image(img, target_size=(224, 224))
+        image = keras.applications.mobilenet.preprocess_input(image)
+        res, baseline_res = self.sess.run(
+            [self.softmax_tensor, self.baseline_res],
+            # {self.input: preprocess_input(np.expand_dims(img, axis=0))}
+            {self.input: [image]}
+        )
+        return calc_mean_score(res), normalize(baseline_res)[0].tolist()
 
 
 class TechnicalQualityModelWithTF:

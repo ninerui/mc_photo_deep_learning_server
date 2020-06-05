@@ -39,6 +39,20 @@ def image_making():
         return json.dumps(conf.status_code['35'])
 
 
+@app.route("/deep_learning/receiving_interface", methods=["POST"])
+def deep_learning_receiving_interface():
+    """
+    深度学习算法接收数据接口
+    data_type: 数据处理类型, 21: 有看(相似, 质量)
+    image_url: 图片路径或者oss key
+    :return:
+    """
+    request_data = str(request.get_data(), encoding='utf-8')
+    request_data = eval(request_data)
+    redis_connect.lpush(conf.redis_image_making_list_name, json.dumps(request_data))
+    return json.dumps(conf.status_code['00'])
+
+
 if __name__ == '__main__':
     # 创建日志
     util.makedirs("./log")
