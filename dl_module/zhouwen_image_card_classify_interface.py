@@ -6,15 +6,19 @@ from tensorflow.python.platform import gfile
 
 
 class IDCardClassify:
-    def __init__(self, model_path='./models/zhouwen_models/DenseNet121121.pb'):
+    def __init__(self, model_path='./models/zhouwen_models/MobileNet.pb'):
         self.sess = tf.Session()
         with gfile.FastGFile(model_path, 'rb') as f:
             graph_def = tf.GraphDef()
         graph_def.ParseFromString(f.read())
         self.sess.graph.as_default()
         tf.import_graph_def(graph_def, name='')
+
+        # self.input = self.sess.graph.get_tensor_by_name('id_card_classify/input_1:0')
+        # self.softmax_tensor = self.sess.graph.get_tensor_by_name('id_card_classify/fc1000/Softmax:0')
+
         self.input = self.sess.graph.get_tensor_by_name('id_card_classify/input_1:0')
-        self.softmax_tensor = self.sess.graph.get_tensor_by_name('id_card_classify/fc1000/Softmax:0')
+        self.softmax_tensor = self.sess.graph.get_tensor_by_name('id_card_classify/act_softmax/Softmax:0')
 
     def get_res_from_one(self, img):
         with self.sess.graph.as_default():

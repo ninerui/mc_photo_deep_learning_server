@@ -28,6 +28,7 @@ wonderful_gen_thread_num_dict = {  # 精彩生成线程数
 }
 log_dir = './log'
 tmp_image_dir = '/data/tmp_image_dir'
+tmp_youkan_image_dir = "/data/tmp_youkan_image_dir"
 
 # redis_image_queue_name = "mc_image_queue_list"
 redis_face_info_name = "mc_face_info_list-{}"
@@ -94,6 +95,19 @@ class AccountConf:
             self.res_port = 6379
             self.res_decode_responses = True
             self.res_password = "Aszs2019"
+
+
+class WritingAccountConf(object):
+    def __init__(self, env_code):
+        assert env_code in [0, 1]  # 0为测试服, 1为正式环境
+        # oss对象
+        self.accessKeyId = ['LTAIRje9cQipM55x', 'LTAIPXCD6YqmhHgz'][env_code]
+        self.accessKeySecret = ['U0oKHXSxsBavNnkzrGcWkpaDlHs9yH', 'XMnLVGCkJTGtDfz7xMZVjgVZAnaSPD'][env_code]
+        self.endpoint = [
+            'http://oss-cn-hangzhou-internal.aliyuncs.com',
+            'http://oss-cn-hangzhou-internal.aliyuncs.com'][env_code]
+        self.bucket = ['mc-photo-writing', 'mc-photo'][env_code]
+        self.host = ['oss-cn-hangzhou-internal.aliyuncs.com', ][env_code]
 
 
 # 返回代码参数

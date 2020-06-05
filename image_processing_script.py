@@ -214,10 +214,21 @@ def get_redis_next_data(rds_name):
     if params_data:
         params = json.loads(params_data)
         logging.info("剩余数据: {}, data: {}".format(redis_connect.llen(conf.redis_image_making_list_name), params))
+
         image_url = params.get("image_url")
-        res_data = image_tools.download_and_parser_image(image_url, conf.tmp_image_dir)
-        download_code = res_data.get('code')
-        image_path = res_data.get('image_path')
+        receiving_data_type = params.get('data_type')
+        if int(receiving_data_type) == 21:  # 有看模块, 进行相似和质量, image_url为oss key
+            local_image_path = os.path.join(conf.tmp_image_dir, '21__' + os.path.basename(image_url))
+            local_save_image_path = os.path.join(conf.tmp_youkan_image_dir, os.path.basename(image_url))
+            writing_oss_connect.get_object_to_file(image_url, local_image_path)
+            shutil.copy(local_image_path, local_save_image_path)
+            download_code = 1
+            image_path = local_image_path
+        else:  # 相册打标签等全功能
+            res_data = image_tools.download_and_parser_image(image_url, conf.tmp_image_dir)
+            download_code = res_data.get('code')
+            image_path = res_data.get('image_path')
+
         if download_code == -1:  # 下载失败, 打回列表
             reg_count = params.get('reg_count', 0)
             if reg_count > 100:
@@ -517,6 +528,18 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             return
         logging.info("image data: {}".format(params_data))
         image_path = params_data.get('image_path')
+        receiving_data_type = params_data.get('data_type')
+        if int(receiving_data_type) == 21:  # 有看模块, 进行相似和质量, image_url为oss key
+            quality_value, similarity_value = aesthetic_model.get_baseline_and_res(image_path)
+            call_results_status = call_url_func(params_data.get('callback_url'), data_json={
+                "fileId": params_data.get("fileId"),
+                "md5": params_data.get("md5"),
+                "key": params_data.get("image_url"),
+                "qualityValue": quality_value,
+                "similarityValue": similarity_value,
+            })
+            logging.info("有看回调结果: {}".format(call_results_status))
+            return
         media_id = params_data.get('media_id')
         user_id = params_data.get('user_id')
         image_url = params_data.get('image_url')
@@ -711,6 +734,7 @@ if __name__ == '__main__':
     # 创建日志文件
     util.makedirs(conf.log_dir)
     util.makedirs(conf.tmp_image_dir)
+    util.makedirs(conf.tmp_youkan_image_dir)
     py_file_name = os.path.basename(__file__).split('.')[0]
     log_file = os.path.join(conf.log_dir, "{}.log".format(py_file_name))
     util.init_logging(log_file, log_filelevel=logging.INFO, log_streamlevel=logging.INFO, daily=False)
@@ -719,10 +743,21 @@ if __name__ == '__main__':
     local_ip = util.get_local_ip()  # 获取ip
     env_code = conf.env_manage.get(local_ip, 0)
     logging.info("获取运行环境代码为: {}(0: 测试服, 1: 正式服), 开始连接oss和redis...".format(env_code))
-    account_conf = conf.AccountConf(env_code=env_code)
+    account_conf = conf.AccountConf(env_code=env_code)  # 获取相册的账号配置
+    writing_account_conf = conf.WritingAccountConf(env_code=env_code)  # 获取有看的账号配置
     # 连接oss
     oss_connect = connects.ConnectALiYunOSS(
-        account_conf.accessKeyId, account_conf.accessKeySecret, account_conf.endpoint, account_conf.bucket)
+        account_conf.accessKeyId,
+        account_conf.accessKeySecret,
+        account_conf.endpoint,
+        account_conf.bucket
+    )  # 相册的oss链接
+    writing_oss_connect = connects.ConnectALiYunOSS(
+        writing_account_conf.accessKeyId,
+        writing_account_conf.accessKeySecret,
+        writing_account_conf.endpoint,
+        writing_account_conf.bucket
+    )  # 有看的oss链接
     # 连接redis
     redis_connect = connects.ConnectRedis(
         account_conf.res_host, account_conf.res_port, account_conf.res_decode_responses, account_conf.res_password
