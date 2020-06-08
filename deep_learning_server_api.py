@@ -53,6 +53,7 @@ def deep_learning_receiving_interface():
     :return:
     """
     try:
+        logging.info(request.get_data())
         request_data = str(request.get_data(), encoding='utf-8')
         request_data = eval(request_data)
         redis_connect.lpush(conf.redis_image_making_list_name, json.dumps(request_data))

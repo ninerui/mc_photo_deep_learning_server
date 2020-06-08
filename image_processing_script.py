@@ -534,13 +534,15 @@ class ImageProcessingThread(threading.Thread):  # 继承父类threading.Thread
             # phash计算图片相似
             similarity_value = imagehash.phash(Image.open(image_path), hash_size=8, highfreq_factor=4)
             similarity_value = ''.join(str(b) for b in 1 * similarity_value.hash.flatten())  # 转成'10101010100'格式
-            call_results_status = call_url_func(params_data.get('callback_url'), data_json={
+            data_json = {
                 "fileId": params_data.get("fileId"),
                 "md5": params_data.get("md5"),
                 "key": params_data.get("image_url"),
                 "qualityValue": quality_value,
                 "similarityValue": similarity_value,
-            })
+            }
+            logging.info("有看回调结果: {}".format(data_json))
+            call_results_status = call_url_func(params_data.get('callback_url'), data_json=data_json)
             logging.info("有看回调结果: {}".format(call_results_status))
             return
         media_id = params_data.get('media_id')
