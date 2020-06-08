@@ -12,3 +12,16 @@ timeout = 120
 # 设置访问日志和错误信息日志路径
 accesslog = './log/acess.log'
 errorlog = './log/error.log'
+# access_log_format = '%(h)s %(l)s %(u)s %(t)s'
+
+"""
+debug:调试级别，记录的信息最多；
+info:普通级别；
+warning:警告消息；
+error:错误消息；
+critical:严重错误消息；
+"""
+# loglevel = 'error'
+
+
+# logger_class = 'STRING'  # 选择处理日志的方法
