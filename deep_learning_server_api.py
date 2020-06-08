@@ -12,6 +12,11 @@ from utils import connects, util
 app = Flask(__name__)
 
 
+@app.route("/", methods=['GET', 'POST'])
+def index_home():
+    return 'hello world'
+
+
 @app.route("/image_making", methods=['POST'])
 def image_making():
     try:
