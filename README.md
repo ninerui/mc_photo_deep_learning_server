@@ -1,1 +1,3 @@
 # mc_photo_deep_learning_server
+
+相册软件采用深度学习算法进行图像处理识别的项目代码
